@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>CourseKit: edit Lowrance pace notes and record them by voice</title>
+<style>
+:root{--bg:#eef0ef;--panel:#ffffff;--panel2:#f4f6f5;--field:#ffffff;--line:#d3d8da;--ink:#14191c;--mute:#5d6970;--blue:#1557c0;--blueInk:#ffffff;--orange:#d9500a;--ok:#1d7f45;--bad:#c62f26;--warn:#9a6a00;--selbg:#e3edfb;--notice:#fff1e2;--acc:var(--orange);--sel:var(--blue)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1315;--panel:#181d20;--panel2:#20272b;--field:#0d1113;--line:#2d363b;--ink:#e9edef;--mute:#93a0a8;--blue:#5b9bff;--blueInk:#07121f;--orange:#ff8a1f;--ok:#46c57a;--bad:#ff6259;--warn:#f2c94c;--selbg:#152a43;--notice:#3a1d0a}}
+:root[data-theme=dark]{--bg:#0f1315;--panel:#181d20;--panel2:#20272b;--field:#0d1113;--line:#2d363b;--ink:#e9edef;--mute:#93a0a8;--blue:#5b9bff;--blueInk:#07121f;--orange:#ff8a1f;--ok:#46c57a;--bad:#ff6259;--warn:#f2c94c;--selbg:#152a43;--notice:#3a1d0a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-height:38px;cursor:pointer;font-weight:550}
+button:hover{border-color:var(--mute)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button.pri{background:var(--blue);border-color:var(--blue);color:var(--blueInk);font-weight:650}
+button.on{border-color:var(--blue);color:var(--blue)}
+button.quiet{border-color:transparent;background:none;color:var(--mute)}
+input,select,textarea{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--blue);flex:none}
+input[type=range]{padding:0;accent-color:var(--blue)}
+textarea{min-height:92px;resize:vertical;width:100%}
+.grow{flex:1}.mute{color:var(--mute)}
+.notice{background:var(--notice);border:1px solid var(--orange);border-radius:10px;padding:10px 12px}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--line)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}.pill.warn{color:var(--warn);border-color:var(--warn)}
+.sw{width:10px;height:10px;border-radius:50%;display:inline-block}
+.row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.row input[type=number]{width:84px}
+h2{font-size:15px;font-weight:650;margin:18px 0 8px}
+h2:first-child{margin-top:0}
+details>summary{cursor:pointer;font-weight:600;padding:8px 0}
+details.sec{border-top:1px solid var(--line);margin-top:10px}
+small,.small{font-size:12px}
+
+#tabs{display:flex;gap:4px;align-items:center;height:48px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top);box-sizing:content-box}
+#tabs .brand{font-weight:750;font-size:16px;margin-right:14px;letter-spacing:-.2px}
+#tabs a{color:var(--mute);text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600;white-space:nowrap}
+#tabs #theme{white-space:nowrap;padding:8px 6px}
+@media (max-width:480px){#tabs .brand{display:none}}
+#tabs a.on{color:var(--ink);background:var(--panel2);box-shadow:inset 0 -3px var(--blue)}
+.page{display:none}.page.on{display:block}
+
+#pageEdit.on{display:flex;flex-direction:column;height:calc(100dvh - 49px - env(safe-area-inset-top))}
+#bar{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+#app{flex:1;min-height:0;display:grid;grid-template-columns:340px 1fr 340px;grid-template-rows:auto 1fr;grid-template-areas:"list map seg" "list map panel"}
+#listcol{grid-area:list;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+#mapwrap{grid-area:map;position:relative;min-height:280px;background:#0d1012}
+#map{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#seg{grid-area:seg;display:flex;gap:4px;padding:8px;background:var(--panel);border-left:1px solid var(--line);border-bottom:1px solid var(--line)}
+#seg button{flex:1;border-radius:8px}
+#seg button.on{background:var(--selbg);border-color:var(--blue);color:var(--ink)}
+#seg #segList{display:none}
+#panel{grid-area:panel;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:14px}
+#pSetup{display:none}
+#app[data-panel=setup] #pSetup{display:block}
+#app[data-panel=setup] #pWp{display:none}
+@media (max-width:1000px){
+  #pageEdit.on{height:auto;display:block}
+  /* narrow: the Roadbook / Waypoint / Setup switch stays at the top, above the map, and sticks while scrolling */
+  #app{display:flex;flex-direction:column}
+  #seg{order:0;position:sticky;top:calc(49px + env(safe-area-inset-top));z-index:6;border-left:0;box-shadow:0 2px 6px #0002}
+  #mapwrap{order:1;height:46vh;flex:none}
+  #listcol,#panel{order:2}
+  #seg #segList{display:block}
+  #listcol,#panel{border:0}
+  #listcol{display:none}
+  #app[data-panel=list] #listcol{display:flex}
+  #app[data-panel=list] #panel{display:none}
+  #list{max-height:none!important;overflow:visible!important}
+  #bar .wide{display:none}
+}
+#lhead{padding:10px;border-bottom:1px solid var(--line)}
+#lhead input[type=search]{width:100%}
+#lhead .row{margin:8px 0 0}
+#lhead select{flex:1}
+#count{font-size:12px;color:var(--mute);margin-top:6px}
+#list{flex:1;overflow:auto}
+.rb{display:grid;grid-template-columns:62px 26px 1fr;gap:10px;align-items:center;width:100%;text-align:left;padding:9px 12px 9px 8px;border:0;border-bottom:1px solid var(--line);background:none;border-radius:0;min-height:52px;font-weight:400}
+.rb:hover{background:var(--panel2)}
+.rb .mi{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.3px}
+.rb .mi small{display:block;font-weight:500;color:var(--mute);letter-spacing:0}
+.rb .gl{display:flex;justify-content:center}
+.sym{display:inline-block;flex:none;vertical-align:middle}.sym svg{width:100%;height:100%;display:block}
+.rb .tx{min-width:0}
+.rb .tx b{display:block;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb .tx span{display:block;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.rb.sel{background:var(--selbg);box-shadow:inset 4px 0 var(--blue)}
+.rb.dirty .mi{color:var(--orange)}
+.listmsg{padding:18px 14px;color:var(--mute)}
+
+.mapbtns{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.mapbtns button{width:40px;height:40px;padding:0;font-size:17px}
+#bAdd{position:absolute;left:10px;top:10px}
+#addBar{display:none;position:absolute;left:50%;bottom:44px;transform:translateX(-50%);gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;box-shadow:0 4px 18px #0006;max-width:94%}
+#addBar span{font-size:13px}
+.hud{position:absolute;left:10px;bottom:10px;background:#0b0d0fd9;color:#dfe5e9;padding:4px 9px;border-radius:6px;font-size:12px;pointer-events:none;font-variant-numeric:tabular-nums}
+#attr{position:absolute;right:10px;bottom:10px;font-size:10px;color:#c9d1d6;background:#0009;padding:1px 6px;border-radius:4px;pointer-events:none}
+#tileNote{display:none;position:absolute;left:50%;bottom:40px;transform:translateX(-50%);font-size:12px;max-width:70%;color:var(--ink)}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:#0d1012}
+.empty .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;max-width:440px}
+.empty h3{margin:0 0 6px;font-size:20px;letter-spacing:-.2px}
+.empty ol{margin:12px 0 16px;padding-left:20px}
+.empty li{margin:6px 0}
+
+.drop{border:1.5px dashed var(--mute);border-radius:10px;padding:16px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.hot{border-color:var(--blue);color:var(--ink);background:var(--selbg)}
+.file{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px;margin-top:8px;background:var(--panel2)}
+.file .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.file small{color:var(--mute);grid-column:2/4}
+.file button{min-height:30px;padding:2px 9px}
+#courseStatus{padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+#courseStatus.good{border-color:var(--ok)}
+
+.ed .mile{font-size:30px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.6px;line-height:1.1}
+.ed .mile small{font-size:13px;font-weight:500;color:var(--mute);letter-spacing:0}
+.ed label.f{display:block;font-weight:600;margin:14px 0 5px}
+.ed input.w{width:100%}
+.icons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.icons button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;font-size:11px;font-weight:500;min-height:54px;line-height:1.2}
+.icons button i{font-style:normal;display:flex}
+.icons button.on{background:var(--selbg);border-color:var(--blue);border-width:2px;color:var(--ink)}
+.showg{display:inline-flex;align-items:center;gap:0;margin-left:6px}.showg .mute{margin-right:6px}
+.showg button{border-radius:0;margin-left:-1px;color:var(--mute)}.showg button:first-of-type{border-radius:8px 0 0 8px}.showg button:last-of-type{border-radius:0 8px 8px 0}
+.showg button.on{background:var(--selbg);border-color:var(--blue);color:var(--ink);position:relative;z-index:1}
+.showg button.on::before{content:"✓ "}
+.showg .ddb{padding:8px 9px;color:var(--ink)}
+.ddwrap{position:relative;width:0;height:0;align-self:flex-end}
+.symmenu{position:absolute;right:0;top:6px;z-index:40;width:280px;max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 8px 28px #0005}
+.symmenu .smh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.symmenu .smh button{min-height:30px;padding:3px 10px;margin-left:4px}
+.smr{display:grid;grid-template-columns:20px 26px 1fr auto;gap:8px;align-items:center;padding:6px 2px;border-top:1px solid var(--line);cursor:pointer}
+table.cc{border-collapse:collapse;margin:4px 0}table.cc td{padding:3px 12px 3px 0}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}.swatches button{padding:5px;min-height:0;display:flex}.swatches button.on{background:var(--selbg);border-color:var(--blue);border-width:2px}
+.callout{display:flex;gap:6px;align-items:center}
+.callout button{white-space:nowrap;padding:8px 10px}
+.callout button.on{background:var(--selbg);border-color:var(--blue);border-width:2px;color:var(--ink)}
+.callout input{width:84px}
+.nav2{display:flex;gap:8px;margin-top:16px}
+.nav2 button{flex:1}
+.danger{color:var(--bad)}
+
+dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;max-width:min(640px,96vw);width:100%;max-height:92vh;padding:0}
+dialog::backdrop{background:#000a}
+dialog .hd{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+dialog .hd h3{margin:0;font-size:18px;flex:1}
+dialog .bd{padding:14px 18px;overflow:auto;max-height:calc(92vh - 140px)}
+dialog .ft{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.opt input[type=checkbox]{margin-top:2px}
+.opt b{display:block;font-weight:650}
+.opt small{display:block;color:var(--mute);font-size:13px}
+.lead{margin:0 0 10px;color:var(--mute)}
+.howto{background:var(--panel2);border-radius:10px;padding:10px 14px;margin-top:12px}
+.howto ol{margin:6px 0 0;padding-left:20px}
+pre{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px;overflow:auto;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace}
+.chg{padding:5px 0;border-bottom:1px solid var(--line);font-size:13px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:50;max-width:90vw;font-weight:550}
+
+#pageRec{max-width:680px;margin:0 auto;padding:0 12px calc(env(safe-area-inset-bottom) + 20px);font-size:16px}
+#pageRec button{border-radius:12px;padding:12px 16px;min-height:46px}
+#pageRec #go{width:100%;font-size:24px;font-weight:750;padding:22px;margin:12px 0 10px;border-radius:18px;background:var(--blue);color:var(--blueInk);border:0}
+#pageRec #go.on{background:var(--panel);color:var(--bad);border:2px solid var(--bad)}
+#pageRec #banner{display:none;font-weight:650;text-align:center;margin:10px 0;padding:14px;cursor:pointer}
+#pageRec #recNote{margin:12px 0}
+#pageRec #heard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:56px;font-size:17px}
+#pageRec #heard .wake{color:var(--orange);font-weight:750}
+#rmapWrap{position:relative;height:42vh;min-height:260px;margin-top:10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#0d1012}
+#rmap{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#rmapWrap .ctl{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+#rmapWrap .ctl button{width:44px;height:44px;min-height:0;padding:0}
+#rmapWrap .big{position:absolute;left:8px;top:8px;display:flex;gap:6px}
+#rmapWrap .big div{background:#0b0d0fd9;color:#fff;border-radius:10px;padding:5px 10px;font-size:12px;line-height:1.2}
+#rmapWrap .big span{display:block;font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;color:#fff!important}
+#rAttr{position:absolute;left:6px;bottom:4px;font-size:9px;color:#c9d1d6;background:#0009;padding:1px 4px;border-radius:4px;pointer-events:none}
+#pageRec .stat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+@media (max-width:520px){#pageRec .stat{grid-template-columns:repeat(2,1fr)}}
+#pageRec .stat div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px}
+#pageRec .stat b{display:block;font-size:12px;color:var(--mute);font-weight:500}
+#pageRec .ok{color:var(--ok)}#pageRec .bad{color:var(--bad)}#pageRec .warn{color:var(--warn)}
+#pageRec .wp{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line)}
+#pageRec .wp .ic{display:flex;justify-content:center}
+#pageRec .wp small{display:block;color:var(--mute);font-size:13px}
+#pageRec .wp button{min-height:36px;padding:4px 12px}
+#pageRec .stack{display:flex;flex-direction:column;gap:8px}
+#pageRec input[type=text]{flex:1}
+#pageRec #log{white-space:pre-wrap;max-height:40vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 ui-monospace,Menlo,monospace}
+#pageRec details{border-top:1px solid var(--line);margin-top:14px}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-32.png">
+<meta name="apple-mobile-web-app-title" content="CourseKit">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+<nav id="tabs"><span class="brand">CourseKit</span><a href="#edit" id="tabEdit">Edit notes</a><a href="#record" id="tabRec">Record a drive</a><span class="grow"></span><button id="theme" class="quiet" title="Switch between day and night colours">Night</button></nav>
+<div id="pageEdit" class="page">
+<div id="bar">
+  <button id="bOpen">Open files</button>
+  <input id="fileIn" type="file" multiple accept=".usr,.gpx,.kml,.kmz" hidden>
+  <button id="bRules" title="Apply your pace-note rules to a range of race miles">Clean up notes</button>
+  <button id="bCorners" title="Add L1–L6 / R1–R6 or L 45–L 180 calls at every corner">Corner calls</button>
+  <button id="bUndo" disabled>Undo</button>
+  <span id="showGroup" class="showg" style="display:none" role="group" aria-label="Show on map"><span class="mute">Show</span>
+    <button id="tTrails" title="Trails and course line (T)" aria-pressed="true">Trails</button><button id="tWpts" title="Your loaded waypoints (W)" aria-pressed="true">Waypoints</button><button id="tWptsMenu" class="ddb" title="Choose which symbols to show" aria-label="Choose which symbols to show" aria-haspopup="true" aria-expanded="false">▾</button><span class="ddwrap"><div id="symMenu" class="symmenu" hidden></div></span><button id="tCorners" title="Automatic corner calls (C)" aria-pressed="true">Corners</button></span>
+  <span class="grow"></span>
+  <span id="barInfo" class="mute wide"></span>
+  <button id="bExport" class="pri">Export</button>
+</div>
+<div id="app" data-panel="setup">
+  <section id="listcol">
+    <div id="lhead">
+      <input id="q" type="search" placeholder="Search notes" aria-label="Search notes">
+      <div class="row"><select id="iconFilter" aria-label="Filter by icon"></select>
+        <input id="rmFrom" type="number" step="1" placeholder="From mile" aria-label="From race mile" style="width:92px"><input id="rmTo" type="number" step="1" placeholder="To mile" aria-label="To race mile" style="width:84px"></div>
+      <div class="row" id="srcRow" style="display:none"><select id="srcFilter" aria-label="Filter by file"></select></div>
+      <div id="count"></div>
+    </div>
+    <div id="list"></div>
+  </section>
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <button id="bAdd" title="Or press + to drop one at the mouse pointer">Add waypoint <span class="mute wide" style="font-weight:500">or press +</span></button>
+    <div class="mapbtns"><button id="zIn" title="Zoom in" aria-label="Zoom in">+</button><button id="zOut" title="Zoom out" aria-label="Zoom out">−</button><button id="zFit" title="Show the whole course" aria-label="Show the whole course">⤢</button><button id="zMe" title="Show where I am" aria-label="Show where I am">◎</button><button id="bLabels" title="Show or hide names on the map" aria-label="Show or hide names">Aa</button></div>
+    <div id="tileNote" class="notice">No map background here. It needs internet, and claude.ai blocks it, so use your hosted copy to see it.</div>
+    <div id="addBar"><span>Move the map until the crosshair is on the spot.</span><button id="zDrop" class="pri">Drop here</button><button id="addDone">Done</button></div>
+    <div id="hud" class="hud"></div><div id="attr"></div>
+    <div id="empty" class="empty"><div class="card">
+      <h3>Open your notes to start</h3>
+      <div class="mute">Everything stays on this device. Nothing is uploaded.</div>
+      <ol><li>Open the .usr file from your Lowrance, or a .gpx / .kml file.</li><li>Check and fix waypoints in the roadbook list.</li><li>Export a file ready to load back on the unit.</li></ol>
+      <button id="bOpen2" class="pri">Open files</button>
+    </div></div>
+  </div>
+  <div id="seg"><button id="segList" data-p="list">Roadbook</button><button data-p="wp">Waypoint</button><button data-p="setup">Setup</button></div>
+  <section id="panel">
+    <div id="pWp"><div id="editBody"></div></div>
+    <div id="pSetup">
+      <h2>Files</h2>
+      <div id="drop" class="drop">Drop files here, or click to choose<br><small>.usr, .gpx, .kml or .kmz</small></div>
+      <div id="files"></div>
+      <h2>Course and race miles</h2>
+      <div id="courseStatus">Open a file that contains the course.</div>
+      <details><summary>Change the course line</summary>
+        <div class="row"><select id="courseSel" style="width:100%"></select></div>
+        <div class="row"><label for="courseStart">Course starts at mile</label><input id="courseStart" type="number" step="0.1" value="0"><span id="courseLen" class="mute"></span></div>
+        <div class="row"><button id="calib">Match to SCORE mile markers</button></div>
+        <div id="calibInfo" class="mute small"></div>
+      </details>
+      <h2>Map background</h2>
+      <div class="row"><select id="basemap" style="flex:1" aria-label="Map background"></select></div>
+      <div class="row"><label for="dim">Darken</label><input id="dim" type="range" min="0" max=".7" step=".05" style="flex:1"></div>
+      <div class="mute small">Needs internet.</div>
+      <details class="sec"><summary>Advanced</summary>
+        <div class="row"><button id="bInspect">Check a Lowrance file</button></div>
+        <div class="mute small">Shows how CourseKit read each .usr file and whether it can write it back unchanged.</div>
+        <h2>Lowrance icon numbers</h2>
+        <div id="iconmap" class="mute"></div>
+      </details>
+    </div>
+  </section>
+</div>
+<input type="checkbox" id="keepAdd" checked hidden>
+<dialog id="dlg"><div class="hd"><h3 id="dlgT"></h3><button id="dlgX" class="quiet">Close</button></div><div class="bd" id="dlgB"></div><div class="ft" id="dlgF"></div></dialog>
+</div>
+<div id="pageRec" class="page">
+<div id="recNote" class="notice" style="display:none"></div>
+<div id="banner" class="notice">Listening stopped. Tap here to start it again.</div>
+<button id="go">Start the day</button>
+<div id="heard" class="mute">Say “waypoint”, then the note. For example: “waypoint, five hundred, cattle guard, check up”. Say “scratch that” to remove the last one.</div>
+<div id="rmapWrap">
+  <canvas id="rmap"></canvas>
+  <div class="big"><div>Waypoints<span id="sCount">0</span></div><div>Race mile<span id="sRm">–</span></div></div>
+  <div class="ctl"><button id="rIn" aria-label="Zoom in">+</button><button id="rOut" aria-label="Zoom out">−</button><button id="rMe" title="Back to my position" aria-label="Back to my position">◎</button><button id="rBase" style="font-size:12px" title="Change the map background">Map</button></div>
+  <div id="rAttr"></div>
+</div>
+<div class="stat">
+  <div><b>GPS</b><span id="sGps" class="mute">off</span></div>
+  <div><b>Listening</b><span id="sSpeech" class="mute">off</span></div>
+  <div><b>Recording</b><span id="sRec" class="mute">off</span></div>
+  <div><b>Screen stays on</b><span id="sWake" class="mute">off</span></div>
+</div>
+<h2>Today's waypoints</h2>
+<div id="wps" class="mute">None yet.</div>
+<h2>At the end of the day</h2>
+<div class="stack">
+  <button id="toEdit" class="pri">Review today's notes in Edit</button>
+  <button id="xNotes">Save notes and transcript</button>
+  <button id="xAudio">Save audio</button><span id="audioInfo" class="mute small"></span>
+  <div id="audioList"></div>
+</div>
+<details><summary>Settings</summary>
+  <div class="row"><label for="course">Course file, to show race miles</label><input id="course" type="file" accept=".gpx,.kml"></div>
+  <div class="row"><label for="startMile">Course starts at mile</label><input id="startMile" type="text" inputmode="decimal" value="0" style="max-width:90px;flex:none"></div>
+  <div class="row"><label for="defCallout">Callout when none is said</label><input id="defCallout" type="text" inputmode="numeric" value="500" style="max-width:90px;flex:none"><span class="mute">ft</span></div>
+  <label class="row"><input id="optRec" type="checkbox" checked> Record audio all day</label>
+  <label class="row"><input id="optBeep" type="checkbox" checked> Beep when a waypoint is saved</label>
+  <label class="row"><input id="optSay" type="checkbox"> Read each waypoint back to me</label>
+  <div class="row"><input id="sim" type="text" placeholder="Type a note to test, e.g. waypoint cattle guard" aria-label="Test note"><button id="simGo">Test</button></div>
+  <div class="row"><button id="newDay" class="danger">Clear today and start a new day</button></div>
+</details>
+<details><summary>Everything it heard today</summary><div id="log"></div></details>
+</div>
+<script>
+// CourseKit core — pure functions, no DOM except where noted (GPX/KML parse use DOMParser passed in).
+// Lowrance USR 4/5/6 reader/writer built from public layout notes (navtools, GPSBabel docs),
+// with a layout search because those sources disagree on several field sizes.
+
+const CK = (() => {
+  const R_LOW = 6356752.3142; // Lowrance Mercator radius (per GPSBabel/navtools)
+  const DEG = Math.PI / 180;
+  const JD_UNIX = 2440588; // Julian Day Number of 1970-01-01
+
+  // ---------- coordinates & time ----------
+  function mercToLL(x, y) {
+    return { lat: (2 * Math.atan(Math.exp(y / R_LOW)) - Math.PI / 2) / DEG, lon: x / R_LOW / DEG };
+  }
+  function llToMerc(lat, lon) {
+    return { x: Math.round(lon * DEG * R_LOW), y: Math.round(R_LOW * Math.log(Math.tan(Math.PI / 4 + lat * DEG / 2))) };
+  }
+  function jdToMs(jd, ms) { return (jd - JD_UNIX) * 86400000 + ms; }
+  function msToJd(t) { const d = Math.floor(t / 86400000); return { jd: d + JD_UNIX, ms: t - d * 86400000 }; }
+
+  // ---------- binary reader / writer ----------
+  class Rd {
+    constructor(u8) { this.b = u8; this.dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); this.p = 0; }
+    need(n) { if (n < 0 || this.p + n > this.b.length) throw new Error(`read past end at byte ${this.p} (+${n})`); }
+    u8() { this.need(1); return this.dv.getUint8(this.p++); }
+    u16() { this.need(2); const v = this.dv.getUint16(this.p, true); this.p += 2; return v; }
+    i16() { this.need(2); const v = this.dv.getInt16(this.p, true); this.p += 2; return v; }
+    u32() { this.need(4); const v = this.dv.getUint32(this.p, true); this.p += 4; return v; }
+    i32() { this.need(4); const v = this.dv.getInt32(this.p, true); this.p += 4; return v; }
+    u64() { this.need(8); const v = this.dv.getBigUint64(this.p, true); this.p += 8; return v; }
+    f32() { this.need(4); const v = this.dv.getFloat32(this.p, true); this.p += 4; return v; }
+    bytes(n) { this.need(n); const v = this.b.slice(this.p, this.p + n); this.p += n; return v; }
+    left() { return this.b.length - this.p; }
+  }
+  class Wr {
+    constructor() { this.parts = []; this.len = 0; }
+    raw(u8) { this.parts.push(u8); this.len += u8.length; }
+    num(size, setter, v) { const b = new Uint8Array(size); setter(new DataView(b.buffer), v); this.raw(b); }
+    u8(v) { this.num(1, (d, x) => d.setUint8(0, x), v); }
+    u16(v) { this.num(2, (d, x) => d.setUint16(0, x, true), v); }
+    i16(v) { this.num(2, (d, x) => d.setInt16(0, x, true), v); }
+    u32(v) { this.num(4, (d, x) => d.setUint32(0, x, true), v); }
+    i32(v) { this.num(4, (d, x) => d.setInt32(0, x, true), v); }
+    u64(v) { this.num(8, (d, x) => d.setBigUint64(0, BigInt(x), true), v); }
+    f32(v) { this.num(4, (d, x) => d.setFloat32(0, x, true), v); }
+    done() { const o = new Uint8Array(this.len); let p = 0; for (const x of this.parts) { o.set(x, p); p += x.length; } return o; }
+  }
+
+  const td16 = new TextDecoder('utf-16le');
+  const tdLatin = new TextDecoder('latin1');
+  function enc16(s) { const o = new Uint8Array(s.length * 2); const d = new DataView(o.buffer); for (let i = 0; i < s.length; i++) d.setUint16(i * 2, s.charCodeAt(i), true); return o; }
+
+  // unit = 1: length field counts bytes; unit = 2: length field counts UTF-16 characters
+  function rdStr(rd, unit, allowNewlines, nul) {
+    const n = rd.i32();
+    if (n === -1) { if (nul) nul.v = true; return ''; }
+    if (n < 0 || n > 200000) throw new Error(`bad string length ${n} at ${rd.p - 4}`);
+    const nb = unit === 0 ? n : n * unit;
+    if (unit !== 0 && nb % 2) throw new Error(`odd byte length ${nb} at ${rd.p - 4}`);
+    const s = unit === 0 ? tdLatin.decode(rd.bytes(nb)) : td16.decode(rd.bytes(nb));
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c < 32 && !(allowNewlines && (c === 9 || c === 10 || c === 13))) throw new Error(`control char in string at ${rd.p}`);
+      if (c >= 0xFFF0) throw new Error(`invalid char in string at ${rd.p}`);
+    }
+    return s;
+  }
+  function wrStr(w, s, unit, isNull) { if (isNull && !s) { w.i32(-1); return; } const b = enc16(s); w.i32(unit === 1 ? b.length : s.length); w.raw(b); }
+
+  // ---------- USR ----------
+  // opt: { hu: header string unit, wu: waypoint string unit, sv: stream-version bytes (2|4), fl: flags bytes (1|4) }
+  function parseHeader(rd, hu) {
+    const h = {};
+    h.format = rd.u32();
+    if (h.format < 4 || h.format > 6) throw new Error(`USR format ${h.format} not supported (4–6 only)`);
+    h.dataStreamVersion = rd.u32();
+    h.title = rdStr(rd, hu);
+    h.dateStr = rdStr(rd, hu);
+    h.date = rd.u32(); h.time = rd.u32();
+    h.unknown = rd.u8();
+    h.serial = rd.u32();
+    h.desc = rdStr(rd, hu, true, {});
+    return h;
+  }
+
+  function parseWpt(rd, fmt, o) {
+    const start = rd.p, w = {};
+    if (fmt >= 5) w.uuid = rd.bytes(16);
+    w.unit = rd.u32();
+    w.seq = rd.u64();
+    w.sv = o.sv === 2 ? rd.u16() : rd.u32();
+    const nn = {}; w.name = rdStr(rd, o.wu, false, nn); w.nameNull = !!nn.v;
+    if (fmt >= 5) w.unit2 = rd.u32();
+    w.x = rd.i32(); w.y = rd.i32();
+    w.flags = o.fl === 1 ? rd.u8() : rd.u32();
+    w.icon = rd.i16(); w.color = rd.i16();
+    const dn = {}; w.desc = rdStr(rd, o.wu, true, dn); w.descNull = !!dn.v;
+    w.alarm = rd.f32();
+    w.date = rd.u32(); w.time = rd.u32();
+    w.unk = rd.u8();
+    w.depth = rd.f32();
+    w.loran = rd.bytes(12);
+    const ll = mercToLL(w.x, w.y);
+    if (!(Math.abs(ll.lat) <= 85.1 && Math.abs(ll.lon) <= 180)) throw new Error(`implausible position at ${start}`);
+    if (!Number.isFinite(w.alarm) || w.alarm < 0 || w.alarm > 1e7) throw new Error(`implausible alarm radius at ${start}`);
+    w.lat = ll.lat; w.lon = ll.lon;
+    w.raw = rd.b.slice(start, rd.p);
+    w.offset = start;
+    return w;
+  }
+
+  function parseRoutes(rd, fmt, o) {
+    const n = rd.i32();
+    if (n < 0 || n > 20000) throw new Error(`bad route count ${n}`);
+    const routes = [];
+    for (let i = 0; i < n; i++) {
+      const r = { offset: rd.p };
+      if (fmt >= 5) r.uuid = rd.bytes(16);
+      r.unit = rd.u32(); r.seq = rd.u64();
+      r.sv = o.sv === 2 ? rd.u16() : rd.u32();
+      r.name = rdStr(rd, o.wu, false, {});
+      if (fmt >= 5) r.unit2 = rd.u32();
+      const legs = rd.i32();
+      if (legs < 0 || legs > 20000) throw new Error(`bad leg count ${legs}`);
+      r.legs = [];
+      for (let j = 0; j < legs; j++) r.legs.push(rd.bytes(fmt >= 5 ? 16 : 12));
+      rd.bytes(fmt >= 5 ? 10 : 1);
+      routes.push(r);
+    }
+    return routes;
+  }
+
+  // Trails: best effort only (layout least documented). Tries several variants; returns null on failure.
+  function tryTrails(u8, pos, fmt, o) {
+    // Variant seen in real Elite FS 9 exports (format 6, data stream 10)
+    try {
+      const rd = new Rd(u8); rd.p = pos;
+      const nt = rd.i32(); if (nt < 0 || nt > 5000) throw new Error('trail count');
+      const trails = [];
+      for (let i = 0; i < nt; i++) {
+        const t = { offset: rd.p };
+        t.unit = rd.u32(); t.seq = rd.u64();
+        t.sv = o.sv === 2 ? rd.u16() : rd.u32();
+        t.name = rdStr(rd, o.wu, false, {});
+        t.flag = rd.u32(); t.color = rd.u32();
+        t.desc = rdStr(rd, o.wu, true, {});
+        t.date = rd.u32(); t.time = rd.u32();
+        rd.bytes(3);
+        const np = rd.u32(); if (np > 5e6) throw new Error('trail points');
+        const pts = new Array(np);
+        for (let j = 0; j < np; j++) {
+          rd.need(27);
+          const tm = rd.dv.getUint32(rd.p + 3, true), lon = rd.dv.getFloat64(rd.p + 7, true) / DEG, lat = rd.dv.getFloat64(rd.p + 15, true) / DEG, na = rd.dv.getUint32(rd.p + 23, true);
+          if (na > 64 || !(Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) throw new Error('trail point');
+          rd.p += 27; rd.bytes(na * 5);
+          pts[j] = { lat, lon, t: tm * 1000 };
+        }
+        t.points = pts; trails.push(t);
+      }
+      if (rd.left() > 8) throw new Error(`${rd.left()} bytes left after trails`);
+      return { trails, variant: { ev: false, uuid: false, navico: true }, coordGuess: 'f64 radians lon,lat', tail: rd.left() };
+    } catch (e) { /* fall back to documented variants */ }
+    const variants = [];
+    for (const ev of [true, false]) for (const uuid of [false, true]) variants.push({ ev, uuid });
+    for (const v of variants) {
+      try {
+        const rd = new Rd(u8); rd.p = pos;
+        if (v.ev) { const ne = rd.i32(); if (ne !== 0) throw new Error('event markers'); }
+        const nt = rd.i32();
+        if (nt < 0 || nt > 5000) throw new Error('trail count');
+        const trails = [];
+        for (let i = 0; i < nt; i++) {
+          const t = {};
+          if (v.uuid) rd.bytes(16);
+          t.unit = rd.u32(); t.seq = rd.u64();
+          t.sv = o.sv === 2 ? rd.u16() : rd.u32();
+          t.name = rdStr(rd, o.wu, false, {});
+          t.flag = rd.u32(); t.color = rd.u32();
+          t.desc = rdStr(rd, o.wu, true, {});
+          t.date = rd.u32(); t.time = rd.u32();
+          rd.bytes(3); rd.u32(); rd.bytes(3);
+          const np = rd.u32();
+          if (np > 5e6) throw new Error('trail points');
+          const pts = [];
+          for (let j = 0; j < np; j++) {
+            rd.u16(); rd.u8(); const tm = rd.u32();
+            const a = rd.f32(), b = rd.f32();
+            const na = rd.u32(); if (na > 64) throw new Error('attrs');
+            rd.bytes(na * 5);
+            pts.push([a, b, tm]);
+          }
+          t.pts = pts; trails.push(t);
+        }
+        if (rd.left() !== 0) throw new Error(`${rd.left()} bytes left after trails`);
+        // decide units/order of the float pair
+        let all = []; for (const t of trails) for (const p of t.pts) all.push(p);
+        const sample = all.slice(0, 2000);
+        const fits = (f) => sample.every(p => { const ll = f(p); return Math.abs(ll.lat) <= 90 && Math.abs(ll.lon) <= 180; });
+        const cands = [
+          { name: 'radians lat,lon', f: p => ({ lat: p[0] / DEG, lon: p[1] / DEG }) },
+          { name: 'degrees lat,lon', f: p => ({ lat: p[0], lon: p[1] }) },
+          { name: 'radians lon,lat', f: p => ({ lat: p[1] / DEG, lon: p[0] / DEG }) },
+          { name: 'degrees lon,lat', f: p => ({ lat: p[1], lon: p[0] }) },
+        ];
+        // prefer radians if all values tiny (|v| <= pi), else degrees
+        const tiny = sample.length && sample.every(p => Math.abs(p[0]) <= Math.PI && Math.abs(p[1]) <= Math.PI);
+        const pick = cands.filter(c => tiny ? c.name.startsWith('radians') : c.name.startsWith('degrees')).find(c => fits(c.f)) || null;
+        for (const t of trails) t.points = pick ? t.pts.map(p => ({ ...pick.f(p), t: p[2] })) : [];
+        return { trails, variant: v, coordGuess: pick ? pick.name : 'unknown' };
+      } catch (e) { /* try next */ }
+    }
+    return null;
+  }
+
+  function parseWith(u8, o) {
+    const rd = new Rd(u8);
+    const h = parseHeader(rd, o.hu);
+    const countPos = rd.p;
+    const n = rd.i32();
+    if (n < 0 || n > 100000) throw new Error(`bad waypoint count ${n}`);
+    const wpts = [];
+    for (let i = 0; i < n; i++) wpts.push(parseWpt(rd, h.format, o));
+    const wptEnd = rd.p;
+    let routes = null, routeErr = null, afterRoutes = null;
+    try { routes = parseRoutes(rd, h.format, o); afterRoutes = rd.p; } catch (e) { routeErr = e.message; }
+    let tr = null;
+    if (afterRoutes != null) tr = tryTrails(u8, afterRoutes, h.format, o);
+    return { h, countPos, wpts, wptEnd, routes, routeErr, afterRoutes, trails: tr ? tr.trails : null, trailInfo: tr, opt: o };
+  }
+
+  function parseUSR(u8) {
+    const results = [], errors = [];
+    for (const hu of [0, 1, 2]) for (const wu of [1, 2]) for (const sv of [2, 4]) for (const fl of [4, 1]) {
+      const o = { hu, wu, sv, fl };
+      try {
+        const r = parseWith(u8, o);
+        r.score = 10 + (r.routes ? 3 : 0) + (r.trails ? 5 : 0) + (r.wpts.length ? 1 : 0);
+        results.push(r);
+      } catch (e) { errors.push({ o, err: e.message }); }
+    }
+    if (!results.length) {
+      const e = new Error('No known USR layout fits this file. Open the Inspector and send me the report.');
+      e.attempts = errors; throw e;
+    }
+    results.sort((a, b) => b.score - a.score);
+    const best = results[0];
+    best.alternatives = results.slice(1).filter(r => r.score === best.score).map(r => r.opt);
+    best.attempts = errors;
+    best.bytes = u8;
+    return best;
+  }
+
+  function wptBytes(w, fmt, o) {
+    const out = new Wr();
+    if (fmt >= 5) out.raw(w.uuid);
+    out.u32(w.unit); out.u64(w.seq);
+    if (o.sv === 2) out.u16(w.sv); else out.u32(w.sv);
+    wrStr(out, w.name, o.wu, w.nameNull);
+    if (fmt >= 5) out.u32(w.unit2 ?? w.unit);
+    out.i32(w.x); out.i32(w.y);
+    if (o.fl === 1) out.u8(w.flags); else out.u32(w.flags);
+    out.i16(w.icon); out.i16(w.color);
+    wrStr(out, w.desc, o.wu, w.descNull);
+    out.f32(w.alarm);
+    out.u32(w.date); out.u32(w.time);
+    out.u8(w.unk);
+    out.f32(w.depth);
+    out.raw(w.loran || new Uint8Array(12));
+    return out.done();
+  }
+
+  // base: parse result; records: list of {w (usr record), dirty}
+  // Header and everything after the waypoint block (routes, events, trails) are copied byte-for-byte.
+  function writeUSR(base, records) {
+    const fmt = base.h.format, o = base.opt;
+    const out = new Wr();
+    out.raw(base.bytes.slice(0, base.countPos));
+    out.i32(records.length);
+    for (const r of records) out.raw(r.dirty || !r.w.raw ? wptBytes(r.w, fmt, o) : r.w.raw);
+    out.raw(base.bytes.slice(base.wptEnd));
+    return out.done();
+  }
+
+  function newUsrRecord(base, { lat, lon, name, desc, icon, alarm, timeMs }, rnd) {
+    const ws = base.wpts;
+    const mode = (k, d) => { const c = {}; let best = d, bc = 0; for (const w of ws) { const v = String(w[k]); c[v] = (c[v] || 0) + 1; if (c[v] > bc) { bc = c[v]; best = w[k]; } } return best; };
+    const maxSeq = ws.reduce((m, w) => w.seq > m ? w.seq : m, 0n);
+    const m = llToMerc(lat, lon);
+    const t = msToJd(timeMs ?? Date.now());
+    const uuid = new Uint8Array(16); rnd(uuid);
+    return {
+      uuid, unit: base.h.serial, unit2: base.h.serial, seq: maxSeq + 1n, sv: mode('sv', 2),
+      name, x: m.x, y: m.y, flags: mode('flags', 0), icon: icon ?? mode('icon', 0), color: mode('color', 0),
+      desc: desc || '', alarm: alarm || 0, date: t.jd, time: t.ms, unk: 0, depth: 0, loran: new Uint8Array(12),
+    };
+  }
+
+  function hex(u8, start, len) {
+    const lines = [];
+    for (let i = start; i < Math.min(u8.length, start + len); i += 16) {
+      const row = u8.slice(i, i + 16);
+      const h = [...row].map(b => b.toString(16).padStart(2, '0')).join(' ');
+      const a = [...row].map(b => b >= 32 && b < 127 ? String.fromCharCode(b) : '.').join('');
+      lines.push(i.toString(16).padStart(6, '0') + '  ' + h.padEnd(48) + ' ' + a);
+    }
+    return lines.join('\n');
+  }
+
+  // ---------- GPX / KML ----------
+  function txt(el, tag) { const n = el.getElementsByTagName(tag)[0]; return n ? n.textContent.trim() : ''; }
+  function parseGPX(text, DP) {
+    const doc = new DP().parseFromString(text, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('Not valid GPX/XML');
+    const wpts = [...doc.getElementsByTagName('wpt')].map(e => ({
+      lat: +e.getAttribute('lat'), lon: +e.getAttribute('lon'), name: txt(e, 'name'),
+      note: txt(e, 'desc') || txt(e, 'cmt'), sym: txt(e, 'sym'), time: Date.parse(txt(e, 'time')) || null,
+      ext: Object.fromEntries([...(e.getElementsByTagName('extensions')[0]?.getElementsByTagName('*') || [])].filter(c => !c.children.length).map(c => [c.localName, c.textContent.trim()])),
+    }));
+    const lines = [];
+    for (const t of doc.getElementsByTagName('trk')) {
+      const pts = [...t.getElementsByTagName('trkpt')].map(p => ({ lat: +p.getAttribute('lat'), lon: +p.getAttribute('lon') }));
+      if (pts.length > 1) lines.push({ name: txt(t, 'name') || 'Track', points: pts, kind: 'track' });
+    }
+    for (const r of doc.getElementsByTagName('rte')) {
+      const rps = [...r.getElementsByTagName('rtept')];
+      const pts = rps.map(p => ({ lat: +p.getAttribute('lat'), lon: +p.getAttribute('lon') }));
+      const rname = r.getElementsByTagName('name')[0];
+      const routeName = rname && rname.parentNode === r ? rname.textContent.trim() : 'Route';
+      if (pts.length > 1) lines.push({ name: routeName, points: pts, kind: 'route' });
+      // Named route points are notes (LeadNav and similar store pace notes this way)
+      rps.forEach((p, i) => {
+        const nm = txt(p, 'name'); if (!nm) return;
+        const ext = {};
+        const ex = p.getElementsByTagName('extensions')[0];
+        if (ex) for (const c of ex.getElementsByTagName('*')) if (!c.children.length) ext[c.localName] = c.textContent.trim();
+        wpts.push({ lat: pts[i].lat, lon: pts[i].lon, name: nm, note: txt(p, 'desc') || txt(p, 'cmt') || '', sym: txt(p, 'sym') || ext.symbol || '', time: Date.parse(txt(p, 'time')) || null, ext, fromRoute: routeName, seq: i });
+      });
+    }
+    return { wpts, lines };
+  }
+  function parseKML(text, DP) {
+    const doc = new DP().parseFromString(text, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('Not valid KML/XML');
+    const wpts = [], lines = [];
+    const coords = s => s.trim().split(/\s+/).map(c => { const [lon, lat] = c.split(',').map(Number); return { lat, lon }; }).filter(p => isFinite(p.lat) && isFinite(p.lon));
+    for (const pm of doc.getElementsByTagName('Placemark')) {
+      const name = txt(pm, 'name'), note = txt(pm, 'description');
+      for (const pt of pm.getElementsByTagName('Point')) { const c = coords(txt(pt, 'coordinates')); if (c[0]) wpts.push({ ...c[0], name, note }); }
+      for (const ls of pm.getElementsByTagName('LineString')) { const c = coords(txt(ls, 'coordinates')); if (c.length > 1) lines.push({ name: name || 'Line', points: c, kind: 'track' }); }
+    }
+    return { wpts, lines };
+  }
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function writeGPX(wpts, lines) {
+    const o = ['<?xml version="1.0" encoding="UTF-8"?>', '<gpx version="1.1" creator="CourseKit" xmlns="http://www.topografix.com/GPX/1/1">'];
+    for (const w of wpts) {
+      o.push(`  <wpt lat="${w.lat.toFixed(7)}" lon="${w.lon.toFixed(7)}">`);
+      if (w.time) o.push(`    <time>${new Date(w.time).toISOString()}</time>`);
+      o.push(`    <name>${esc(w.name)}</name>`);
+      if (w.note) o.push(`    <desc>${esc(w.note)}</desc>`);
+      if (w.icon) o.push(`    <sym>${esc(w.icon)}</sym>`);
+      o.push('  </wpt>');
+    }
+    for (const l of lines) {
+      o.push(`  <trk><name>${esc(l.name)}</name><trkseg>`);
+      for (const p of l.points) o.push(`    <trkpt lat="${p.lat.toFixed(7)}" lon="${p.lon.toFixed(7)}"/>`);
+      o.push('  </trkseg></trk>');
+    }
+    o.push('</gpx>');
+    return o.join('\n');
+  }
+  function writeKML(wpts, lines, title) {
+    const o = ['<?xml version="1.0" encoding="UTF-8"?>', '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>', `<name>${esc(title)}</name>`];
+    for (const w of wpts) o.push(`<Placemark><name>${esc(w.name)}</name>${w.note ? `<description>${esc(w.note)}</description>` : ''}<Point><coordinates>${w.lon.toFixed(7)},${w.lat.toFixed(7)},0</coordinates></Point></Placemark>`);
+    for (const l of lines) o.push(`<Placemark><name>${esc(l.name)}</name><LineString><coordinates>${l.points.map(p => `${p.lon.toFixed(7)},${p.lat.toFixed(7)},0`).join(' ')}</coordinates></LineString></Placemark>`);
+    o.push('</Document></kml>');
+    return o.join('\n');
+  }
+
+  // ---------- geometry: race mile ----------
+  const M_PER_MI = 1609.344, FT = 0.3048;
+  function hav(a, b) {
+    const dLat = (b.lat - a.lat) * DEG, dLon = (b.lon - a.lon) * DEG;
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * DEG) * Math.cos(b.lat * DEG) * Math.sin(dLon / 2) ** 2;
+    return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(s)));
+  }
+  function buildCourse(points, startMile = 0) {
+    const cum = [0];
+    for (let i = 1; i < points.length; i++) cum.push(cum[i - 1] + hav(points[i - 1], points[i]));
+    return { points, cum, startMile, lengthMi: cum[cum.length - 1] / M_PER_MI };
+  }
+  // returns { mile, offM }
+  function project(course, p) {
+    const P = course.points, C = course.cum;
+    let best = { d2: Infinity, along: 0 };
+    const kx = Math.cos(p.lat * DEG) * 111320, ky = 110540;
+    for (let i = 1; i < P.length; i++) {
+      const ax = (P[i - 1].lon - p.lon) * kx, ay = (P[i - 1].lat - p.lat) * ky;
+      const bx = (P[i].lon - p.lon) * kx, by = (P[i].lat - p.lat) * ky;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+      let t = L2 ? -(ax * dx + ay * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      const cx = ax + t * dx, cy = ay + t * dy, d2 = cx * cx + cy * cy;
+      if (d2 < best.d2) best = { d2, along: C[i - 1] + t * (C[i] - C[i - 1]) };
+    }
+    return { mile: course.startMile + best.along / M_PER_MI, offM: Math.sqrt(best.d2) };
+  }
+
+  // Join numbered segments (e.g. 26B1K-PRUN-S01..S11) into one course line.
+  // If a segment runs past the start of the next one (the unit appended a recording), trim it there.
+  function joinSeries(lines, tolM = 50) {
+    const out = [], notes = [];
+    for (let i = 0; i < lines.length; i++) {
+      let pts = lines[i].points;
+      const next = lines[i + 1];
+      if (next && pts.length && next.points.length) {
+        const ns = next.points[0], end = pts[pts.length - 1];
+        if (hav(end, ns) > tolM) {
+          let bi = -1, bd = Infinity;
+          for (let j = 0; j < pts.length; j++) { const d = hav(pts[j], ns); if (d < bd) { bd = d; bi = j; } }
+          if (bd <= tolM) { notes.push(`${lines[i].name}: trimmed ${pts.length - bi - 1} points after it meets ${next.name} (looks like an appended recording)`); pts = pts.slice(0, bi + 1); }
+          else notes.push(`gap of ${(hav(end, ns) / 1609.344).toFixed(2)} mi between ${lines[i].name} and ${next.name}`);
+        }
+      }
+      for (const p of pts) { const l = out[out.length - 1]; if (!l || l.lat !== p.lat || l.lon !== p.lon) out.push(p); }
+    }
+    return { points: out, notes };
+  }
+
+  // ---------- zip (store) + unzip (for KMZ) ----------
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function zip(files) { // [{name, data: Uint8Array}]
+    const te = new TextEncoder(), w = new Wr(), central = new Wr(); let off = 0;
+    for (const f of files) {
+      const nm = te.encode(f.name), crc = crc32(f.data);
+      const lh = new Wr();
+      lh.u32(0x04034b50); lh.u16(20); lh.u16(0x0800); lh.u16(0); lh.u16(0); lh.u16(0x21);
+      lh.u32(crc); lh.u32(f.data.length); lh.u32(f.data.length); lh.u16(nm.length); lh.u16(0); lh.raw(nm);
+      const lhb = lh.done(); w.raw(lhb); w.raw(f.data);
+      central.u32(0x02014b50); central.u16(20); central.u16(20); central.u16(0x0800); central.u16(0); central.u16(0); central.u16(0x21);
+      central.u32(crc); central.u32(f.data.length); central.u32(f.data.length); central.u16(nm.length); central.u16(0); central.u16(0);
+      central.u16(0); central.u16(0); central.u32(0); central.u32(off); central.raw(nm);
+      off += lhb.length + f.data.length;
+    }
+    const cd = central.done(); w.raw(cd);
+    w.u32(0x06054b50); w.u16(0); w.u16(0); w.u16(files.length); w.u16(files.length); w.u32(cd.length); w.u32(off); w.u16(0);
+    return w.done();
+  }
+  async function unzip(u8) {
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+    if (e < 0) throw new Error('Not a zip/KMZ file');
+    const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+    const out = [], td = new TextDecoder();
+    for (let i = 0; i < n; i++) {
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+      const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+      const name = td.decode(u8.slice(p + 46, p + 46 + nl));
+      const lnl = dv.getUint16(lo + 26, true), lxl = dv.getUint16(lo + 28, true);
+      const data = u8.slice(lo + 30 + lnl + lxl, lo + 30 + lnl + lxl + csize);
+      let bytes = data;
+      if (method === 8) bytes = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      else if (method !== 0) throw new Error(`zip method ${method} not supported`);
+      out.push({ name, data: bytes });
+      p += 46 + nl + xl + cl;
+    }
+    return out;
+  }
+
+  return { mercToLL, llToMerc, jdToMs, msToJd, parseUSR, writeUSR, wptBytes, newUsrRecord, hex, parseGPX, parseKML, writeGPX, writeKML, buildCourse, project, hav, joinSeries, zip, unzip, crc32, M_PER_MI, FT, Wr, enc16 };
+})();
+if (typeof module !== 'undefined') module.exports = CK;
+
+</script>
+<script>
+// Basemap tiles (Web Mercator, 256 px). Needs internet; claude.ai blocks remote images inside artifacts.
+const TILES = (() => {
+  const P = {
+    none: null,
+    sat: { name: 'Satellite (Esri)', max: 19, attr: 'Imagery © Esri, Maxar, Earthstar Geographics, GIS user community',
+      url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}` },
+    topo: { name: 'Topo (OpenTopoMap)', max: 17, attr: 'Map data © OpenStreetMap contributors, SRTM · Style © OpenTopoMap (CC-BY-SA)',
+      url: (z, x, y) => `https://${'abc'[(x + y) % 3]}.tile.opentopomap.org/${z}/${x}/${y}.png` },
+    streets: { name: 'Streets (OpenStreetMap)', max: 19, attr: '© OpenStreetMap contributors',
+      url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png` },
+  };
+  const cache = new Map(); let fails = 0, loads = 0;
+  function get(p, z, x, y, onLoad, create) {
+    const k = `${p}/${z}/${x}/${y}`; let e = cache.get(k);
+    if (e) { cache.delete(k); cache.set(k, e); return e.ok ? e.img : null; } // LRU touch
+    if (!create) return null;
+    const img = new Image(); e = { img, ok: false }; cache.set(k, e);
+    img.onload = () => { e.ok = true; loads++; onLoad(); };
+    img.onerror = () => { e.err = true; fails++; };
+    img.src = P[p].url(z, x, y);
+    if (cache.size > 800) cache.delete(cache.keys().next().value);
+    return null;
+  }
+  // view: { cx, cy (0..1 world), z (fractional) }
+  function draw(ctx, p, view, W, H, onLoad, dim) {
+    const pr = P[p]; if (!pr) return;
+    const tz = Math.max(0, Math.min(pr.max, Math.round(view.z)));
+    const n = 2 ** tz, k = 256 * 2 ** view.z, ts = k / n;
+    const x0 = Math.floor((view.cx - W / 2 / k) * n), x1 = Math.floor((view.cx + W / 2 / k) * n);
+    const y0 = Math.max(0, Math.floor((view.cy - H / 2 / k) * n)), y1 = Math.min(n - 1, Math.floor((view.cy + H / 2 / k) * n));
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) return; // too many tiles (very zoomed out on a huge screen)
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const xx = ((x % n) + n) % n;
+      const sx = (x / n - view.cx) * k + W / 2, sy = (y / n - view.cy) * k + H / 2;
+      const img = get(p, tz, xx, y, onLoad, true);
+      if (img) { ctx.drawImage(img, sx, sy, ts + .5, ts + .5); continue; }
+      for (let d = 1; d <= 5 && tz - d >= 0; d++) { // show a blurry parent tile while the real one loads
+        const pimg = get(p, tz - d, xx >> d, y >> d, onLoad, false);
+        if (pimg) { const s = 256 / 2 ** d; ctx.drawImage(pimg, (xx - ((xx >> d) << d)) * s, (y - ((y >> d) << d)) * s, s, s, sx, sy, ts + .5, ts + .5); break; }
+      }
+    }
+    if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
+  }
+  const blocked = () => fails > 3 && loads === 0;
+  return { P, draw, blocked, attr: p => P[p] ? P[p].attr : '' };
+})();
+
+</script>
+<script>
+// Waypoint symbols drawn as SVG (32x32), styled after Lowrance chart symbols: flat colour, dark outline.
+// Not exact copies of the unit's artwork: drawn from the icon names and what we know (blue dots, yellow caution triangles).
+const SYM = (() => {
+  const K = '#1b1b1b';
+  const S = {
+    // glossy ball with a dark rim, as on the Elite FS (SCORE VCP / RM / SZ points)
+    dot: c => `<defs><radialGradient id="g" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><circle cx="16" cy="16" r="10" fill="${c}" stroke="${K}" stroke-width="2"/><circle cx="16" cy="16" r="9" fill="url(#g)"/>`,
+    // yellow road-sign diamond with an exclamation mark; its colour is set per waypoint on the unit
+    caution: c => `<path d="M16 2.5 29.5 16 16 29.5 2.5 16z" fill="${c || '#f2d21a'}" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><path d="M14.6 8.5h2.8l-.5 10h-1.8z" fill="${K}"/><circle cx="16" cy="22" r="1.7" fill="${K}"/>`,
+    skull: () => `<path d="M8.5 26.8 23.5 18.2M23.5 26.8 8.5 18.2" stroke="${K}" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M16 3.5c-5.5 0-9 3.6-9 8.3 0 2.7 1.3 4.6 3 5.6v2.8h12v-2.8c1.7-1 3-2.9 3-5.6 0-4.7-3.5-8.3-9-8.3z" fill="${K}"/>
+      <ellipse cx="12.6" cy="12.2" rx="2.3" ry="2.6" fill="#fff"/><ellipse cx="19.4" cy="12.2" rx="2.3" ry="2.6" fill="#fff"/><path d="M16 15.4l-1.3 2.2h2.6z" fill="#fff"/><path d="M12.6 20.2v-2M16 20.2v-2M19.4 20.2v-2" stroke="#fff" stroke-width="1"/>`,
+    deer: () => `<path d="M24.6 5.2c-.5 1.6-1.6 2.6-3 3.2l1.4-3.4-1.3-.4-1.3 3.6c-.6.1-1.1.4-1.5.8l-2.1-2.4-1 .9 2.3 2.6-.6 1.2c-.9.5-1.6 1.4-2 2.4l-6.4 1c-2.6.4-4.4 2.3-4.8 4.8l-.9 1.5 1.1.8 1.3-1.8.5 1.3-1.9 5.6 1.6.5 2.1-5.4 2.3.3 1.6 5.6 1.6-.4-1.3-5.4c1.7-.4 3.4-1.2 4.7-2.4l.9 2.5-.9 4.9 1.6.3 1.1-5.3-.7-4.2c1.4-1.6 2.3-3.6 2.4-5.6l1.6-.3c.7-.1 1.2-.7 1.2-1.4l-.4-1.4c1.4-.9 2.2-2.4 2.2-4.1z" fill="#8a5a2b" stroke="${K}" stroke-width="1.1" stroke-linejoin="round"/>`,
+    hooves: () => `${hoof(10, 10, -14)}${hoof(22, 22, 10)}`,
+    star: () => `<path d="M16 2.8l3.9 8.2 9 1.1-6.6 6.2 1.7 8.9L16 22.8l-8 4.4 1.7-8.9-6.6-6.2 9-1.1z" fill="#ffd21f" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/>`,
+    rock: () => `<path d="M3 27.5l3.5-8 4.5-2.5 2-5.5 6-2 5.5 4 3 6.5 1.5 7.5z" fill="#9b9b97" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><path d="M11 17l3 4.5 5-1.5M19 9.5l1 6 5 1" fill="none" stroke="#5f5f5b" stroke-width="1.3"/>`,
+    house: () => `<path d="M5 15 16 5l11 10v12.5H5z" fill="#fff" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><path d="M2.5 16 16 3.5 29.5 16" fill="none" stroke="#d6312a" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="13.3" y="19" width="5.4" height="8.5" fill="#8a5a2b" stroke="${K}" stroke-width="1.2"/>`,
+    // black pump with a red-and-white display, as on the unit
+    gas: () => `<rect x="6" y="5" width="13" height="23" rx="1.8" fill="${K}"/><rect x="8.4" y="7.4" width="8.2" height="7" fill="#fff"/><rect x="8.4" y="7.4" width="8.2" height="3.2" fill="#d6312a"/><path d="M19 11h3.4c1 0 1.6.7 1.6 1.6v9.2c0 1.4 2.6 1.4 2.6 0V9.5L23.5 6.5" fill="none" stroke="${K}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><rect x="4" y="27" width="17" height="2.4" fill="${K}"/>`,
+    check: () => `<path d="M7 4v25" stroke="${K}" stroke-width="2.6" stroke-linecap="round"/><path d="M8.2 5.5h18v12h-18z" fill="#fff" stroke="${K}" stroke-width="1.6"/>${[0, 1, 2, 3, 4, 5].map(i => [0, 1, 2, 3].map(j => (i + j) % 2 ? '' : `<rect x="${8.2 + i * 3}" y="${5.5 + j * 3}" width="3" height="3" fill="${K}"/>`).join('')).join('')}`,
+    stop: () => `<path d="M11 3h10l7 7v10l-7 7H11l-7-7V10z" transform="translate(0 1)" fill="#d6312a" stroke="${K}" stroke-width="1.6"/><path d="M11 5h10l5.6 5.6v8.8L21 25H11l-5.6-5.6v-8.8z" transform="translate(0 1)" fill="none" stroke="#fff" stroke-width="1.4"/><text x="16" y="20.4" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" fill="#fff">STOP</text>`,
+    danger: () => `<circle cx="16" cy="16" r="12.5" fill="#d6312a" stroke="${K}" stroke-width="1.8"/><path d="M14.3 7.5h3.4l-.7 11h-2z" fill="#fff"/><circle cx="16" cy="22.6" r="2" fill="#fff"/>`,
+    water: () => `${[9, 16, 23].map(y => `<path d="M3 ${y}c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 6.5 0 4.3 2.6 6.5 0" fill="none" stroke="${K}" stroke-width="4.4" stroke-linecap="round"/><path d="M3 ${y}c2.2-2.6 4.3-2.6 6.5 0s4.3 2.6 6.5 0 4.3-2.6 6.5 0 4.3 2.6 6.5 0" fill="none" stroke="#2f8de4" stroke-width="2.4" stroke-linecap="round"/>`).join('')}`,
+    // blue diamond split into quarters by a white cross (unit's diamond symbol)
+    other: () => `<path d="M16 2.5 29.5 16 16 29.5 2.5 16z" fill="#2350d8" stroke="${K}" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 4v24M4 16h24" stroke="#fff" stroke-width="1.6"/><path d="M16 4.5 27.5 16H16z" fill="#fff" opacity=".22"/>`,
+  };
+  function hoof(cx, cy, rot) {
+    const toe = d => `<path d="M${cx + d * 1.2} ${cy - 7}C${cx + d * 3.5} ${cy - 5} ${cx + d * 4.8} ${cy - 1} ${cx + d * 4.6} ${cy + 2.5}C${cx + d * 4.4} ${cy + 5.5} ${cx + d * 2.6} ${cy + 6.2} ${cx + d * 1.2} ${cy + 5.6}Z" fill="#a8743f" stroke="${K}" stroke-width="1.2" stroke-linejoin="round"/>`;
+    return `<g transform="rotate(${rot} ${cx} ${cy})">${toe(-1)}${toe(1)}</g>`;
+  }
+  // A waypoint's colour number counts round the unit's colour picker, starting from the symbol's own colour.
+  // Caution order read off the C0–C9 test photo; dot order from the SZ / END SZ test.
+  const PAL = {
+    dot: [['#2f5fe0', 'Blue'], ['#e05fd0', 'Pink'], ['#e0391f', 'Red'], ['#f4d21a', 'Yellow'], ['#3cb33c', 'Green'], ['#5ccfe6', 'Light blue'], ['#f4f4ee', 'White']],
+    caution: [['#f2d21a', 'Yellow'], ['#3cb33c', 'Green'], ['#4fd0e0', 'Light blue'], ['#2350d8', 'Blue'], ['#c44fd8', 'Purple'], ['#e0391f', 'Red'], ['#f4f4ee', 'White']],
+  };
+  const colourOf = (key, n) => { const p = PAL[key]; return p ? p[((n || 0) % p.length + p.length) % p.length][0] : null; };
+  const dotColour = n => colourOf('dot', n);
+  const HALO = '<defs><filter id="h" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="1.4" result="d"/><feFlood flood-color="#fff"/><feComposite in2="d" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  const svg = (key, colour) => {
+    const body = (S[key] || S.dot)(colour || (key === 'caution' ? PAL.caution[0][0] : PAL.dot[0][0])), plain = key === 'dot' || key === 'other' || key === 'caution' || !S[key];
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 34 34">${plain ? body : HALO + '<g filter="url(#h)">' + body + '</g>'}</svg>`;
+  };
+  const cache = new Map();
+  function img(key, colour, onload) {
+    const k = key + '|' + (colour || ''); let e = cache.get(k);
+    if (!e) { e = new Image(); e.onload = () => onload && onload(); e.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(key, colour)); cache.set(k, e); }
+    return e.complete && e.naturalWidth ? e : null;
+  }
+  const html = (key, size = 22, colour) => key == null ? '' : `<span class="sym" style="width:${size}px;height:${size}px" aria-hidden="true">${svg(key || 'dot', colour)}</span>`;
+  return { svg, img, html, dotColour, colourOf, palette: k => PAL[k] || null, has: k => k in S };
+})();
+
+</script>
+<script>
+// Automatic rally-style corner calls from a course line.
+// Grades calibrated on the other team's LeadNav notes in B1K2026 (RM 63–320 and 813–970):
+// Matched against 547 of their L1–R6 calls: 48% same grade, 89% within one grade; notes sit at the corner entry.
+const CORNERS = (() => {
+  const RE = 6371008.8, D = Math.PI / 180;
+  const DEF = {
+    step: 5, chord: 20, rate: 0.05, gap: 15, minAngle: 20, lead: 0, core: 0.5,
+    grade: [28, 40, 62, 105, 160, 240], // max radius (m) for 1..6, fitted to their calls; wider than the last = not called
+    deg: [[20, 45], [57, 70], [80, 90], [135, 180]], // [min turn angle, call]
+  };
+  function resample(pts, step) {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; cum.push(cum[i - 1] + Math.hypot((b.lat - a.lat) * D * RE, (b.lon - a.lon) * D * RE * Math.cos((a.lat + b.lat) / 2 * D))); }
+    const out = [], L = cum[cum.length - 1]; let j = 0;
+    for (let t = 0; t <= L; t += step) {
+      while (j < cum.length - 2 && cum[j + 1] < t) j++;
+      const f = cum[j + 1] > cum[j] ? (t - cum[j]) / (cum[j + 1] - cum[j]) : 0;
+      out.push({ s: t, lat: pts[j].lat + f * (pts[j + 1].lat - pts[j].lat), lon: pts[j].lon + f * (pts[j + 1].lon - pts[j].lon) });
+    }
+    return out;
+  }
+  const wrap = a => ((a + 540) % 360) - 180;
+  // Returns [{side:'L'|'R', angle, radius, len, entry:{lat,lon,s}, apex:{lat,lon,s}}], s in metres along the line
+  function detect(points, o = {}) {
+    const p = { ...DEF, ...o };
+    if (points.length < 3) return [];
+    const rs = resample(points, p.step), k = Math.max(1, Math.round(p.chord / p.step)), n = rs.length;
+    const H = rs.map((_, i) => { const a = rs[Math.max(0, i - k)], b = rs[Math.min(n - 1, i + k)]; return Math.atan2((b.lon - a.lon) * Math.cos(b.lat * D), b.lat - a.lat) / D; });
+    const T = H.map((h, i) => i < n - 1 ? wrap(H[i + 1] - h) : 0); // degrees per step, + = right
+    const thr = p.rate * p.step, gapN = Math.round(p.gap / p.step);
+    const runs = []; let cur = null;
+    for (let i = 0; i < n; i++) {
+      const sg = T[i] > thr ? 1 : T[i] < -thr ? -1 : 0;
+      if (sg && cur && cur.sg === sg && i - cur.b <= gapN) { cur.b = i; continue; }
+      if (sg) { cur = { sg, a: i, b: i }; runs.push(cur); }
+    }
+    const out = [];
+    for (const r of runs) {
+      let ang = 0, mx = 0, mi = r.a;
+      for (let i = r.a; i <= r.b; i++) { ang += T[i]; if (r.sg * T[i] > mx) { mx = r.sg * T[i]; mi = i; } }
+      ang = Math.abs(ang);
+      if (ang < p.minAngle) continue;
+      const len = (r.b - r.a + 1) * p.step;
+      // radius from the tightest part: the stretch turning at least half as hard as the peak
+      let ca = 0, cn = 0;
+      for (let i = r.a; i <= r.b; i++) if (r.sg * T[i] >= mx * p.core) { ca += r.sg * T[i]; cn++; }
+      const radius = (cn * p.step) / (Math.max(ca, 1e-6) * D);
+      const ei = Math.max(0, r.a - Math.round(p.lead / p.step));
+      out.push({ side: r.sg > 0 ? 'R' : 'L', angle: ang, radius, len, entry: rs[ei], apex: rs[mi] });
+    }
+    return out;
+  }
+  function grade(c, o = {}) { const g = (o.grade || DEF.grade).findIndex(m => c.radius <= m); return g < 0 ? null : g + 1; }
+  function degCall(c, o = {}) { let v = null; for (const [min, call] of (o.deg || DEF.deg)) if (c.angle >= min) v = call; return v; }
+  // style: 'grade' -> L1..L6, 'deg' -> L 45 / L 70 / L 90 / L 180
+  function calls(points, style, o = {}) {
+    return detect(points, o).map(c => {
+      const g = grade(c, o), d = degCall(c, o);
+      const label = style === 'deg' ? (d && `${c.side} ${d}`) : (g && `${c.side}${g}`);
+      return label ? { ...c, label, grade: g, deg: d } : null;
+    }).filter(Boolean);
+  }
+  return { detect, calls, grade, degCall, DEF };
+})();
+if (typeof module !== 'undefined') module.exports = CORNERS;
+
+</script>
+<script>
+// PaceNote voice logic — pure, testable. Turns speech-recognition results into waypoints.
+const PV = (() => {
+  const WAKE = /\bway\s?-?points?\b/gi;
+  const CANCEL = /\b(scratch that|cancel (the )?way\s?-?point|delete (the )?(last )?way\s?-?point)\b/i;
+  function classify(text) {
+    const t = text.toLowerCase();
+    if ((t.match(/check\s*up/g) || []).length >= 3 || /cliff|drop ?off|\bdrop\b|ledge|danger/.test(t)) return 'skull';
+    if (/\bpit\b/.test(t)) return 'house';
+    if (/\bgas\b|diesel|\bfuel\b/.test(t)) return 'gas';
+    if (/cattle ?guard|\bgate\b|\bfence\b/.test(t)) return 'hooves';
+    if (/\bcows?\b|\bcattle\b|\bhorses?\b|\bgoats?\b|\bburros?\b|\bdonkeys?\b|livestock/.test(t)) return 'deer';
+    if (/flat ?out/.test(t) && /rise|crest/.test(t)) return 'star';
+    if (/\brocks?\b|rocky|boulders?/.test(t)) return 'rock';
+    return 'caution';
+  }
+  function callout(text, def) {
+    const t = text.toLowerCase();
+    if (/\b(1000|1,000|one thousand|a thousand|thousand)\b/.test(t)) return 1000;
+    if (/\b(500|five hundred)\b/.test(t)) return 500;
+    return def;
+  }
+  const clean = s => s.replace(/^[\s,.;:-]+|[\s,.;:-]+$/g, '').replace(/\s+/g, ' ');
+
+  // Engine: feed it recognition results; it calls hooks.lock(t) (to grab a GPS fix) and hooks.drop / hooks.cancel.
+  function Engine(hooks, opts = {}) {
+    const defCallout = opts.defCallout || 500;
+    const seen = new Map(); // resultKey -> array of lock objects from interim wake words
+    let last = null; // last dropped waypoint { t, note }
+    function wakeCount(s) { return (s.match(WAKE) || []).length; }
+    function interim(key, text, now) {
+      if (CANCEL.test(text)) return;
+      const locks = seen.get(key) || [];
+      const n = wakeCount(text);
+      while (locks.length < n) locks.push(hooks.lock(now));
+      seen.set(key, locks);
+    }
+    function final(key, text, now) {
+      const locks = seen.get(key) || []; seen.delete(key);
+      hooks.transcript && hooks.transcript(text, now);
+      if (CANCEL.test(text)) { hooks.cancel(now); last = null; return; }
+      const parts = text.split(WAKE);
+      // parts[0] is speech before the first wake word
+      if (parts.length === 1) {
+        // no wake word: attach to a just-dropped waypoint that has no note yet
+        if (last && !last.w.note && now - last.t < 8000 && clean(text)) { last.w.note = clean(text); last.w.heard = (last.w.heard || '') + ' / ' + text; finish(last.w); hooks.update && hooks.update(last.w); }
+        return;
+      }
+      for (let i = 1; i < parts.length; i++) {
+        const note = clean(parts[i]);
+        const fix = locks[i - 1] || hooks.lock(now);
+        const w = { t: fix && fix.t ? fix.t : now, fix, note, heard: text };
+        finish(w);
+        hooks.drop(w);
+        last = { t: now, w };
+      }
+    }
+    function finish(w) { w.icon = classify(w.note); w.callout = callout(w.note, defCallout); }
+    return { interim, final };
+  }
+  return { Engine, classify, callout, WAKE, CANCEL };
+})();
+if (typeof module !== 'undefined') module.exports = PV;
+
+</script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const ICONS = [
+  ['', '', 'Blue dot'], ['caution', '', 'Caution diamond'], ['skull', '', 'Skull'], ['deer', '', 'Deer (livestock)'],
+  ['hooves', '', 'Hooves (cattle guard / gate)'], ['star', '', 'Star (flat out over rise)'], ['rock', '', 'Rock'],
+  ['house', '', 'House (pit)'], ['gas', '', 'Gas / fuel'], ['check', '', 'Check'], ['stop', '', 'Stop'], ['danger', '', 'Danger'], ['water', '', 'Water crossing'], ['other', '', 'Diamond'],
+];
+const LABEL = Object.fromEntries(ICONS.map(i => [i[0], i[2].replace(/ \(.*/, '')]));
+// what to draw for a waypoint: its symbol, or a coloured dot for waypoints with no symbol (SCORE VCP / RM / SZ points)
+const symKey = w => iconOf(w) || 'dot';
+const symCol = w => SYM.colourOf(symKey(w), w.rawColor || 0);
+const COLORS = ['#4aa3ff', '#3fbf6f', '#c77dff', '#f2c94c', '#ff5a52', '#2ec4b6', '#f78fb3', '#9aa5ad'];
+const FT = 0.3048;
+
+const S = {
+  files: [], wpts: [], lines: [], nextId: 1,
+  course: null, courseLineId: '', iconMap: {}, sel: null, addMode: false, labels: true,
+  sort: { k: 'rm', dir: 1 }, undo: [],
+  view: { cx: 0.5, cy: 0.5, z: 2 }, fitted: false, panel: 'setup', showLines: true, showWpts: true, hideSym: new Set(), basemap: 'sat', dim: .25, hover: null, me: null, follow: false,
+};
+const newId = () => S.nextId++;
+const toast = (m, ms = 3500) => { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), ms); };
+const fileOf = w => S.files.find(f => f.id === w.fileId);
+const iconOf = w => (w.icon != null ? w.icon : (w.rawIcon != null ? (S.iconMap[w.rawIcon] ?? '') : ''));
+const fmtMi = v => v == null ? '' : v.toFixed(1);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------------- loading ----------------
+async function loadFiles(list) {
+  for (const f of list) {
+    try {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      const ext = f.name.toLowerCase().split('.').pop();
+      if (ext === 'usr') addUSR(f.name, buf);
+      else if (ext === 'gpx') addXML(f.name, 'gpx', CK.parseGPX(new TextDecoder().decode(buf), DOMParser));
+      else if (ext === 'kml') addXML(f.name, 'kml', CK.parseKML(new TextDecoder().decode(buf), DOMParser));
+      else if (ext === 'kmz') {
+        const ents = await CK.unzip(buf);
+        const k = ents.find(e => e.name.toLowerCase().endsWith('.kml'));
+        if (!k) throw new Error('No .kml inside the KMZ');
+        addXML(f.name, 'kml', CK.parseKML(new TextDecoder().decode(k.data), DOMParser));
+      } else throw new Error('CourseKit opens .usr, .gpx, .kml and .kmz files');
+    } catch (e) {
+      console.error(e); toast(`${f.name}: ${e.message}`, 7000);
+      if (e.attempts) S.failed = { name: f.name, attempts: e.attempts };
+    }
+  }
+  autoSetup(); recompute(); fit();
+  if (S.files.length && S.panel === 'setup') showPanel('list');
+  renderAll();
+}
+// Pick the course and match race miles without being asked, when the files make it obvious.
+function autoSetup() {
+  if (S.courseLineId) return;
+  const sr = seriesList().sort((x, y) => y.lines.length - x.lines.length)[0];
+  let id = '';
+  if (sr) id = sr.key;
+  else { const c = S.lines.filter(l => fileOf(l).isScore).sort((x, y) => y.points.length - x.points.length)[0]; if (c) id = String(c.id); }
+  if (!id) return;
+  S.courseLineId = id; S.rmCal = null; recompute(); calibrate(true);
+}
+function showPanel(p) {
+  S.panel = p; $('#app').dataset.panel = p;
+  document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.p === p || (p === 'list' && b.dataset.p === 'wp' && matchMedia('(min-width:1001px)').matches)));
+}
+function newFile(name, kind) {
+  const f = { id: newId(), name, kind, visible: true, color: COLORS[S.files.length % COLORS.length], isScore: /score|bfg|course|11\.0/i.test(name) && kind !== 'usr' };
+  S.files.push(f); return f;
+}
+function addUSR(name, buf) {
+  const p = CK.parseUSR(buf);
+  const f = newFile(name, 'usr'); f.usr = p;
+  p.wpts.forEach((r, i) => S.wpts.push({
+    id: newId(), fileId: f.id, lat: r.lat, lon: r.lon, name: r.name, note: r.desc, icon: null, rawIcon: r.icon, rawColor: r.color,
+    alarmM: r.alarm * 1852, time: CK.jdToMs(r.date, r.time), usrIdx: i, dirty: false, deleted: false,
+  }));
+  (p.trails || []).forEach(t => { if (t.points.length > 1) S.lines.push({ id: newId(), fileId: f.id, name: t.name || 'Trail', points: t.points, kind: 'trail' }); });
+  (p.routes || []).forEach(r => {
+    const pts = r.legs.map(u => p.wpts.find(w => w.uuid && sameBytes(w.uuid, u))).filter(Boolean).map(w => ({ lat: w.lat, lon: w.lon }));
+    if (pts.length > 1) S.lines.push({ id: newId(), fileId: f.id, name: r.name || 'Route', points: pts, kind: 'route' });
+  });
+  toast(`Opened ${name}: ${p.wpts.length} waypoints and ${p.trails ? p.trails.length : 0} trails.`);
+}
+function sameBytes(a, b) { if (a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; }
+function addXML(name, kind, d) {
+  const f = newFile(name, kind);
+  const icons = new Set(ICONS.map(i => i[0]));
+  d.wpts.forEach(w => S.wpts.push({
+    id: newId(), fileId: f.id, lat: w.lat, lon: w.lon, name: w.name, note: w.note || '', icon: icons.has((w.sym || '').toLowerCase()) ? w.sym.toLowerCase() : '',
+    sym: w.sym, ext: w.ext, seq: w.seq, alarmM: 0, time: w.time, dirty: false, deleted: false,
+  }));
+  if (d.wpts.some(w => w.ext && (w.ext.audible || w.ext.symbol))) f.app = 'LeadNav';
+  d.lines.forEach(l => S.lines.push({ id: newId(), fileId: f.id, name: l.name, points: l.points, kind: l.kind }));
+  toast(`Opened ${name}: ${d.wpts.length} waypoints.`);
+}
+function scratchFile() {
+  let f = S.files.find(f => f.kind === 'new');
+  if (!f) f = newFile('New waypoints', 'new');
+  return f;
+}
+
+// ---------------- race miles ----------------
+function calRM(m) { // piecewise-linear map from course miles to official SCORE race miles
+  const c = S.rmCal; if (!c || !c.length) return m;
+  if (m <= c[0][0]) return c[0][1] + (m - c[0][0]);
+  if (m >= c[c.length - 1][0]) return c[c.length - 1][1] + (m - c[c.length - 1][0]);
+  let lo = 0, hi = c.length - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (c[mid][0] <= m) lo = mid; else hi = mid; }
+  const [a0, b0] = c[lo], [a1, b1] = c[hi]; return b0 + (m - a0) * (b1 - b0) / (a1 - a0);
+}
+// Projection onto the course is the slow part (90k course points), so it is cached per waypoint.
+function proj(w) {
+  if (w._pk !== S.lineKey || w._plat !== w.lat || w._plon !== w.lon) { const r = CK.project(S.course0, w); w._m = r.mile; w._off = r.offM; w._pk = S.lineKey; w._plat = w.lat; w._plon = w.lon; }
+  return w;
+}
+function setMile(w) {
+  const note = () => { const m = /\bRM\s*([0-9]+(?:\.[0-9]+)?)/i.exec(w.note || ''); return m ? +m[1] : null; };
+  if (!S.course) { w.rm = note(); w.offM = null; return; }
+  proj(w); w.offM = w._off;
+  w.rm = w._off > 800 ? note() : S.rmCal ? calRM(w._m) : S.course.startMile + w._m;
+}
+function recompute() {
+  const key = S.courseLineId + '|' + S.lines.length;
+  if (key !== S.lineKey) {
+    let line = null;
+    if (S.courseLineId.startsWith('series:')) {
+      const sr = seriesList().find(x => x.key === S.courseLineId);
+      if (sr) { const j = CK.joinSeries(sr.lines); line = { points: j.points }; S.joinNotes = j.notes; }
+    } else line = S.lines.find(l => String(l.id) === S.courseLineId);
+    S.course0 = line ? CK.buildCourse(line.points, 0) : null; S.lineKey = key;
+  }
+  S.course = S.course0 ? Object.assign({}, S.course0, { startMile: +$('#courseStart').value || 0 }) : null;
+  $('#courseLen').textContent = S.course ? `${S.course.lengthMi.toFixed(1)} mi` : '';
+  for (const w of S.wpts) setMile(w);
+}
+
+function seriesList() {
+  const groups = {};
+  for (const l of S.lines) { const m = /^(.*?)(\d+)\s*$/.exec(l.name || ''); if (!m) continue; const k = 'series:' + l.fileId + ':' + m[1]; (groups[k] = groups[k] || { key: k, prefix: m[1], fileId: l.fileId, lines: [] }).lines.push({ ...l, n: +m[2] }); }
+  return Object.values(groups).filter(g => g.lines.length > 1).map(g => { g.lines.sort((x, y) => x.n - y.n); return g; });
+}
+function courseMembers() { const g = seriesList().find(x => x.key === S.courseLineId); return new Set(g ? g.lines.map(l => l.id) : []); }
+// ---------------- map ----------------
+const cv = $('#map'), ctx = cv.getContext('2d');
+const wx = lon => (lon + 180) / 360;
+const wy = lat => { const s = Math.sin(lat * Math.PI / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
+const scale = () => 256 * 2 ** S.view.z;
+function toS(lat, lon) { const k = scale(); return [(wx(lon) - S.view.cx) * k + cv.clientWidth / 2, (wy(lat) - S.view.cy) * k + cv.clientHeight / 2]; }
+function fromS(x, y) {
+  const k = scale(), X = (x - cv.clientWidth / 2) / k + S.view.cx, Y = (y - cv.clientHeight / 2) / k + S.view.cy;
+  const lon = X * 360 - 180, n = Math.PI - 2 * Math.PI * Y; return { lat: 180 / Math.PI * Math.atan(Math.sinh(n)), lon };
+}
+// Show toggles: trails = all lines incl. the course; waypoints = everything except the auto corner calls
+function visW() { return S.wpts.filter(w => { if (w.deleted) return false; const f = fileOf(w); return f?.visible && (f.corners || (S.showWpts && !S.hideSym.has(symKey(w)))); }); }
+function fit() {
+  const pts = S.course ? S.course.points : [...visW(), ...S.lines.filter(l => fileOf(l)?.visible).flatMap(l => l.points)];
+  if (!pts.length) return;
+  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+  for (const p of pts) { const x = wx(p.lon), y = wy(p.lat); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const W = cv.clientWidth || 600, H = cv.clientHeight || 400;
+  const span = Math.max((x1 - x0) / (W - 60), (y1 - y0) / (H - 60), 1e-9);
+  S.view = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, z: Math.min(18, Math.log2(1 / (256 * span))) };
+  S.fitted = true; draw();
+}
+function draw() {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0d1012'; ctx.fillRect(0, 0, W, H);
+  TILES.draw(ctx, S.basemap, S.view, W, H, schedDraw, S.dim);
+  $('#attr').textContent = TILES.attr(S.basemap);
+  $('#tileNote').style.display = S.files.length && S.basemap !== 'none' && TILES.blocked() ? 'block' : 'none';
+  $('#empty').style.display = S.files.length ? 'none' : 'flex';
+  // graticule
+  const a = fromS(0, H), b = fromS(W, 0);
+  const span = Math.max(b.lon - a.lon, 1e-6);
+  const steps = [10, 5, 2, 1, .5, .25, .1, .05, .02, .01, .005, .002, .001];
+  const st = steps.find(s => span / s >= 3) || .001;
+  ctx.strokeStyle = S.basemap !== 'none' ? 'rgba(255,255,255,.08)' : '#1a2024'; ctx.lineWidth = 1; ctx.fillStyle = S.basemap !== 'none' ? '#c9d1d6' : '#4a555c'; ctx.font = '10px system-ui';
+  for (let lon = Math.ceil(a.lon / st) * st; lon <= b.lon; lon += st) { const [x] = toS(0, lon); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); ctx.fillText(lon.toFixed(3), x + 3, H - 4); }
+  for (let lat = Math.ceil(a.lat / st) * st; lat <= b.lat; lat += st) { const [, y] = toS(lat, 0); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.fillText(lat.toFixed(3), 3, y - 3); }
+  // lines
+  for (const l of S.lines) {
+    const f = fileOf(l); if (!f?.visible || !S.showLines) continue;
+    if (S.course && S.courseLineId.startsWith('series:') && courseMembers().has(l.id)) continue;
+    const isCourse = String(l.id) === S.courseLineId;
+    ctx.strokeStyle = isCourse ? '#ff8a1f' : f.color; ctx.lineWidth = isCourse ? 2.5 : 1.5; ctx.globalAlpha = isCourse ? 1 : .75;
+    ctx.setLineDash(l.kind === 'route' ? [6, 4] : []);
+    ctx.beginPath(); let last = null;
+    for (const p of l.points) { const [x, y] = toS(p.lat, p.lon); if (!last) ctx.moveTo(x, y); else if (Math.abs(x - last[0]) + Math.abs(y - last[1]) > .7) ctx.lineTo(x, y); else continue; last = [x, y]; }
+    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  if (S.showLines && S.course && S.courseLineId.startsWith('series:')) {
+    ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 2.5; ctx.beginPath(); let last = null;
+    for (const p of S.course.points) { const [x, y] = toS(p.lat, p.lon); if (!last) ctx.moveTo(x, y); else if (Math.abs(x - last[0]) + Math.abs(y - last[1]) > .7) ctx.lineTo(x, y); else continue; last = [x, y]; }
+    ctx.stroke();
+  }
+  // waypoints
+  const ws = visW(), showLbl = S.labels && S.view.z > 13;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const mpp = 156543.034 * Math.cos((S.sel ? S.sel.lat : 0) * Math.PI / 180) / 2 ** S.view.z; // m per px (for 256 tiles)
+  for (const w of ws) {
+    const [x, y] = toS(w.lat, w.lon); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
+    const f = fileOf(w), ic = iconOf(w), sel = S.sel === w;
+    if (sel && w.alarmM > 0) { ctx.strokeStyle = '#4aa3ff'; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(x, y, w.alarmM / mpp, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    // the symbol itself sits on the point; nothing drawn under it
+    const sz = (S.view.z < 9 ? 9 : S.view.z < 11 ? 14 : S.view.z < 14 ? 20 : 26) * (sel ? 1.3 : 1) * (ic ? 1 : .8);
+    if (sel) { ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, sz * .72, 0, 7); ctx.fill(); ctx.stroke(); ctx.lineWidth = 1; }
+    const im = SYM.img(symKey(w), symCol(w), schedDraw);
+    if (im) ctx.drawImage(im, x - sz / 2, y - sz / 2, sz, sz);
+    void f;
+    if (showLbl || sel) { ctx.font = '600 11px system-ui'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText(w.name, x, y + sz / 2 + 8); ctx.fillStyle = '#fff'; ctx.fillText(w.name, x, y + sz / 2 + 8); ctx.lineWidth = 1; }
+  }
+  // my GPS position
+  if (S.me) {
+    const [x, y] = toS(S.me.lat, S.me.lon), r = Math.max(6, S.me.acc / mpp);
+    ctx.fillStyle = 'rgba(74,163,255,.15)'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if (S.me.hdg != null && !isNaN(S.me.hdg)) { const h = (S.me.hdg - 90) * Math.PI / 180; ctx.fillStyle = '#4aa3ff'; ctx.beginPath(); ctx.moveTo(x + Math.cos(h) * 18, y + Math.sin(h) * 18); ctx.lineTo(x + Math.cos(h + 2.5) * 9, y + Math.sin(h + 2.5) * 9); ctx.lineTo(x + Math.cos(h - 2.5) * 9, y + Math.sin(h - 2.5) * 9); ctx.fill(); }
+    ctx.fillStyle = '#4aa3ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); ctx.stroke(); ctx.lineWidth = 1;
+  }
+  // add-mode crosshair at the centre of the map
+  if (S.addMode) {
+    const cx = W / 2, cy = H / 2;
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 4; xhair(cx, cy); ctx.strokeStyle = '#ff8a1f'; ctx.lineWidth = 2; xhair(cx, cy); ctx.lineWidth = 1;
+  }
+  // scale bar
+  const m100 = 100 / 1 * mpp; const nice = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000].find(v => v / mpp > 70) || 50000;
+  ctx.strokeStyle = '#8b969e'; ctx.beginPath(); ctx.moveTo(W - 20 - nice / mpp, H - 14); ctx.lineTo(W - 20, H - 14); ctx.stroke();
+  ctx.fillStyle = '#8b969e'; ctx.textAlign = 'right'; ctx.font = '10px system-ui';
+  ctx.fillText(nice >= 1609 ? `${(nice / 1609.344).toFixed(2)} mi` : `${Math.round(nice / FT)} ft`, W - 20, H - 24); void m100;
+  const at = S.addMode ? fromS(W / 2, H / 2) : S.hover;
+  let pos = '';
+  if (at) { pos = `${at.lat.toFixed(5)}, ${at.lon.toFixed(5)}`; if (S.course) { const r = CK.project(S.course, at); pos = `Mile ${(S.rmCal ? calRM(r.mile - S.course.startMile) : r.mile).toFixed(1)}${r.offM > 150 ? `, ${Math.round(r.offM / FT)} ft off course` : ''}   ${pos}`; } }
+  $('#hud').textContent = pos; $('#hud').style.display = pos ? 'block' : 'none';
+  $('#addBar').style.display = S.addMode ? 'flex' : 'none'; $('#bAdd').style.display = S.addMode || !S.files.length ? 'none' : 'block';
+  cv.style.cursor = S.addMode ? 'crosshair' : 'grab';
+}
+let drag = null; const ptrs = new Map();
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.offsetX, e.offsetY]); drag = { x: e.offsetX, y: e.offsetY, cx: S.view.cx, cy: S.view.cy, moved: false, pinch: null }; if (ptrs.size === 2) { const [p, q] = [...ptrs.values()]; drag.pinch = { d: Math.hypot(p[0] - q[0], p[1] - q[1]), z: S.view.z }; } });
+cv.addEventListener('pointermove', e => {
+  if (!drag) { if (e.pointerType === 'mouse') { S.hover = fromS(e.offsetX, e.offsetY); schedDraw(); } return; } ptrs.set(e.pointerId, [e.offsetX, e.offsetY]);
+  if (drag.pinch && ptrs.size === 2) { const [p, q] = [...ptrs.values()]; const d = Math.hypot(p[0] - q[0], p[1] - q[1]); S.view.z = Math.max(1, Math.min(20, drag.pinch.z + Math.log2(d / drag.pinch.d))); drag.moved = true; draw(); return; }
+  const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  S.view.cx = drag.cx - dx / scale(); S.view.cy = drag.cy - dy / scale(); S.follow = false; schedDraw();
+});
+cv.addEventListener('pointerleave', () => { S.hover = null; schedDraw(); });
+cv.addEventListener('pointerup', e => {
+  ptrs.delete(e.pointerId);
+  if (drag && !drag.moved && ptrs.size === 0) clickMap(e.offsetX, e.offsetY);
+  if (ptrs.size === 0) drag = null;
+});
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, e.deltaY < 0 ? .5 : -.5); }, { passive: false });
+function xhair(x, y) { ctx.beginPath(); ctx.moveTo(x - 22, y); ctx.lineTo(x - 6, y); ctx.moveTo(x + 6, y); ctx.lineTo(x + 22, y); ctx.moveTo(x, y - 22); ctx.lineTo(x, y - 6); ctx.moveTo(x, y + 6); ctx.lineTo(x, y + 22); ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, 2, 0, 7); ctx.stroke(); }
+let raf = 0; function schedDraw() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); }); }
+function zoomAt(x, y, dz) {
+  const before = fromS(x, y); S.view.z = Math.max(1, Math.min(20, S.view.z + dz));
+  const [nx, ny] = toS(before.lat, before.lon); S.view.cx += (nx - x) / scale(); S.view.cy += (ny - y) / scale(); draw();
+}
+function clickMap(x, y) {
+  if (S.addMode) { addAt(fromS(x, y)); return; }
+  let best = null, bd = 14;
+  for (const w of visW()) { const [px, py] = toS(w.lat, w.lon); const d = Math.hypot(px - x, py - y); if (d < bd) { bd = d; best = w; } }
+  select(best);
+}
+function addAt(ll, focusName) {
+  snapshot('add waypoint');
+  const hadFile = S.files.some(f => f.kind === 'new'), f = scratchFile();
+  const w = { id: newId(), fileId: f.id, lat: ll.lat, lon: ll.lon, name: 'New', note: '', icon: 'caution', alarmM: 152.4, time: Date.now(), dirty: true, deleted: false };
+  setMile(w); S.wpts.push(w); S.sel = w;
+  if (!hadFile) renderFiles();
+  showPanel('wp'); renderTable(); renderEditor(); markSel(); barInfo(); draw();
+  if (focusName) setTimeout(() => { const n = $('#eName'); if (n) { n.focus(); n.select(); } }, 30);
+}
+// Keyboard: + drops a waypoint at the mouse pointer (or the map centre), Enter edits its name, Esc leaves a field or add mode.
+document.addEventListener('keydown', e => {
+  if (!$('#pageEdit').classList.contains('on') || dlg.open || e.ctrlKey || e.metaKey || e.altKey) return;
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+  if (e.key === 'Escape') { if (typing) document.activeElement.blur(); else if (S.addMode) { S.addMode = false; draw(); } return; }
+  if (typing || !S.files.length) return;
+  if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') { e.preventDefault(); addAt(S.hover || fromS(cv.clientWidth / 2, cv.clientHeight / 2)); }
+  else if (e.key === 'Enter' && S.sel) { e.preventDefault(); const n = $('#eName'); if (n) { n.focus(); n.select(); } }
+  else if (e.key === 'Delete' && S.sel) { e.preventDefault(); $('#eDel')?.click(); }
+  else if ((e.key === 'c' || e.key === 'C') && S.files.some(f => f.corners)) { e.preventDefault(); toggleCorners(); }
+  else if (e.key === 't' || e.key === 'T') { e.preventDefault(); toggleTrails(); }
+  else if (e.key === 'w' || e.key === 'W') { e.preventDefault(); toggleWpts(); }
+  else if ((e.key === 'a' || e.key === 'A') && S.sel) { e.preventDefault(); const w = S.sel; if (w.alarmM) { w._lastAlarm = w.alarmM; w.alarmM = 0; } else w.alarmM = w._lastAlarm || 500 * FT; w.dirty = true; renderEditor(); updateRow(w); draw(); }
+  else if (e.key === 'ArrowDown' && S.sel) { e.preventDefault(); $('#eNext')?.click(); }
+  else if (e.key === 'ArrowUp' && S.sel) { e.preventDefault(); $('#ePrev')?.click(); }
+});
+new ResizeObserver(() => draw()).observe(cv);
+
+// ---------------- selection / editor ----------------
+function select(w, pan) {
+  S.sel = w;
+  if (w && pan) { S.view.cx = wx(w.lon); S.view.cy = wy(w.lat); if (S.view.z < 14) S.view.z = 15; }
+  if (w) showPanel('wp');
+  renderEditor(); markSel(); draw();
+}
+function iconOptions(cur, short) { return ICONS.map(([k, g, l]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${short ? LABEL[k] : l}</option>`).join(''); }
+const cleanNote = n => (n || '').replace(/^\s*#\d+\s*-\s*RM\s*[\d.]+\s*-\s*(?:\d+\s*ft\s*-\s*)?/i, '');
+function renderEditor() {
+  const w = S.sel, el = $('#editBody');
+  if (!w) { el.className = 'mute'; el.innerHTML = S.files.length ? 'Pick a waypoint from the roadbook or tap one on the map to edit it.' : 'Open a file first. Waypoints you pick will show here.'; return; }
+  const f = fileOf(w), r = f.usr && w.usrIdx != null ? f.usr.wpts[w.usrIdx] : null;
+  const ft = Math.round((w.alarmM || 0) / FT), cur = iconOf(w);
+  const list = filtered(), ix = list.indexOf(w);
+  el.className = 'ed';
+  el.innerHTML = `
+    <div class="mile">${w.rm != null ? 'Mile ' + fmtMi(w.rm) : w.offM > 800 ? 'Off the course' : 'No race mile'}${w.offM != null && w.offM > 60 ? ` <small>${w.offM > 1609 ? (w.offM / 1609.344).toFixed(1) + ' mi' : Math.round(w.offM / FT) + ' ft'} from the course line</small>` : ''}</div>
+    ${w.dirty ? '<span class="pill warn">Edited</span>' : ''}
+    <label class="f" for="eName">Name on the Lowrance</label><input id="eName" class="w" value="${esc(w.name)}">
+    <label class="f" for="eNote">Note</label><textarea id="eNote">${esc(w.note)}</textarea>
+    <label class="f">Icon</label>
+    <div class="icons">${ICONS.map(([k, g, l]) => `<button data-ic="${k}" class="${k === cur ? 'on' : ''}"><i>${SYM.html(k || 'dot', 26, k === cur ? symCol(w) : null)}</i>${LABEL[k]}</button>`).join('')}</div>
+    ${SYM.palette(symKey(w)) ? `<label class="f">Colour</label><div class="swatches">${SYM.palette(symKey(w)).map(([hex, nm], i) => `<button data-col="${i}" class="${(w.rawColor || 0) % 7 === i ? 'on' : ''}" title="${nm}" aria-label="${nm}">${SYM.html(symKey(w), 24, hex)}</button>`).join('')}</div>` : ''}
+    <label class="f" for="eAlarm">Alarm</label>
+    <div class="callout"><button id="eOff" class="${ft ? '' : 'on'}">Off</button><button id="e500" class="${ft === 500 ? 'on' : ''}">500 ft</button><button id="e1000" class="${ft === 1000 ? 'on' : ''}">1000 ft</button><input id="eAlarm" type="number" step="50" min="0" value="${ft || ''}" placeholder="other" aria-label="Alarm distance in feet"><span class="mute">ft</span></div>
+    <div class="mute small" style="margin-top:4px">${ft ? `The Lowrance alarm sounds ${ft} ft before this waypoint.` : 'No alarm for this waypoint.'}</div>
+    <div class="nav2"><button id="ePrev" ${ix > 0 ? '' : 'disabled'}>Previous</button><button id="eNext" ${ix >= 0 && ix < list.length - 1 ? '' : 'disabled'}>Next</button></div>
+    <div class="row" style="margin-top:14px"><button id="eDel" class="danger">Delete waypoint</button></div>
+    <details class="sec"><summary>Details</summary><div class="mute small">
+      From ${esc(f.name)}<br>Position ${w.lat.toFixed(6)}, ${w.lon.toFixed(6)}
+      ${w.time ? `<br>Created ${new Date(w.time).toISOString().replace('T', ' ').slice(0, 16)} UTC` : ''}
+      ${r ? `<br>Lowrance icon number ${r.icon}, colour ${r.color}` : ''}</div></details>`;
+  const upd = (fn, redo) => { fn(); w.dirty = true; if (redo) renderEditor(); updateRow(w); draw(); };
+  $('#eName').oninput = e => upd(() => w.name = e.target.value);
+  $('#eNote').oninput = e => upd(() => w.note = e.target.value);
+  el.querySelector('.icons').onclick = e => { const b = e.target.closest('button'); if (b) upd(() => { w.icon = b.dataset.ic; w.rawColor = 0; }, true); };
+  const sw = el.querySelector('.swatches'); if (sw) sw.onclick = e => { const b = e.target.closest('button'); if (b) upd(() => w.rawColor = +b.dataset.col, true); };
+  $('#eAlarm').onchange = e => upd(() => w.alarmM = (+e.target.value || 0) * FT, true);
+  $('#eOff').onclick = () => upd(() => { if (w.alarmM) w._lastAlarm = w.alarmM; w.alarmM = 0; }, true);
+  $('#e500').onclick = () => upd(() => w.alarmM = 500 * FT, true);
+  $('#e1000').onclick = () => upd(() => w.alarmM = 1000 * FT, true);
+  $('#ePrev').onclick = () => select(list[ix - 1], true);
+  $('#eNext').onclick = () => select(list[ix + 1], true);
+  $('#eDel').onclick = () => { snapshot('delete waypoint'); const nx = list[ix + 1] || list[ix - 1] || null; w.deleted = true; S.sel = null; renderAll(); if (nx) select(nx, true); toast('Waypoint deleted. Undo brings it back.'); };
+}
+
+// ---------------- table ----------------
+function filtered() {
+  const q = $('#q').value.trim().toLowerCase(), a = parseFloat($('#rmFrom').value), b = parseFloat($('#rmTo').value);
+  const ic = $('#iconFilter').value, src = $('#srcFilter').value;
+  let ws = visW().filter(w =>
+    (!q || (w.name + ' ' + w.note).toLowerCase().includes(q)) &&
+    (isNaN(a) || (w.rm != null && w.rm >= a)) && (isNaN(b) || (w.rm != null && w.rm <= b)) &&
+    (!ic || iconOf(w) === (ic === '_none' ? '' : ic)) && (!src || String(w.fileId) === src));
+  const k = S.sort.k, d = S.sort.dir;
+  const key = { src: w => fileOf(w).name, rm: w => w.rm ?? 1e9, off: w => w.offM ?? 1e9, icon: iconOf, name: w => w.name.toLowerCase(), note: w => w.note.toLowerCase(), alarm: w => w.alarmM }[k];
+  ws.sort((x, y) => { const p = key(x), q2 = key(y); return (p > q2 ? 1 : p < q2 ? -1 : 0) * d; });
+  return ws;
+}
+let tableLimit = 300;
+function rowHtml(w) {
+  const ic = iconOf(w), note = cleanNote(w.note), ft = Math.round((w.alarmM || 0) / FT);
+  return `<div class="mi">${w.rm != null ? fmtMi(w.rm) : '–'}${ft >= 1 ? `<small>🔔 ${ft} ft</small>` : ''}</div><div class="gl">${SYM.html(symKey(w), 24, symCol(w))}</div><div class="tx"><b>${esc(w.name) || '(no name)'}</b><span>${esc(note)}</span></div>`;
+}
+function renderTable() {
+  const ws = filtered(), el = $('#list');
+  const total = visW().length;
+  $('#count').textContent = !S.files.length ? '' : ws.length === total ? `${total} waypoints, in race-mile order` : `${ws.length} of ${total} waypoints`;
+  if (!S.files.length) { el.innerHTML = '<div class="listmsg">Your waypoints will be listed here in race-mile order, like a roadbook.</div>'; return; }
+  if (!ws.length) { el.innerHTML = '<div class="listmsg">No waypoints match. Clear the search or the mile range.</div>'; return; }
+  el.innerHTML = ws.slice(0, tableLimit).map(w => `<button class="rb ${S.sel === w ? 'sel' : ''} ${w.dirty ? 'dirty' : ''}" data-id="${w.id}">${rowHtml(w)}</button>`).join('') +
+    (ws.length > tableLimit ? `<div class="listmsg"><button id="more">Show ${Math.min(300, ws.length - tableLimit)} more</button></div>` : '');
+  const more = $('#more'); if (more) more.onclick = () => { tableLimit += 300; renderTable(); };
+}
+function updateRow(w) { const r = $(`#list .rb[data-id="${w.id}"]`); if (r) { r.innerHTML = rowHtml(w); r.classList.toggle('dirty', !!w.dirty); } barInfo(); }
+function markSel() {
+  document.querySelectorAll('#list .rb.sel').forEach(r => r.classList.remove('sel'));
+  if (!S.sel) return;
+  let r = $(`#list .rb[data-id="${S.sel.id}"]`);
+  if (!r) { const ix = filtered().indexOf(S.sel); if (ix >= tableLimit) { tableLimit = ix + 50; renderTable(); r = $(`#list .rb[data-id="${S.sel.id}"]`); } }
+  if (r) { r.classList.add('sel'); if (matchMedia('(min-width:1001px)').matches) r.scrollIntoView({ block: 'nearest' }); }
+}
+$('#list').addEventListener('click', e => {
+  const r = e.target.closest('.rb'); if (!r) return;
+  select(S.wpts.find(x => x.id === +r.dataset.id), true);
+});
+['#q', '#rmFrom', '#rmTo', '#iconFilter', '#srcFilter'].forEach(s => $(s).addEventListener('input', () => { tableLimit = 300; renderTable(); }));
+document.querySelectorAll('#seg button').forEach(b => b.onclick = () => showPanel(b.dataset.p));
+
+// ---------------- side panels ----------------
+function renderFiles() {
+  $('#files').innerHTML = S.files.map(f => {
+    const n = S.wpts.filter(w => w.fileId === f.id && !w.deleted).length;
+    const d = S.wpts.filter(w => w.fileId === f.id && w.dirty && !w.deleted).length;
+    return `<div class="file" data-id="${f.id}">
+      <input type="checkbox" data-a="vis" ${f.visible ? 'checked' : ''} title="Show on the map and in the list" aria-label="Show ${esc(f.name)}">
+      <div class="nm"><span class="sw" style="background:${f.color}"></span> ${esc(f.name)}</div>
+      <button data-a="rm" title="Close this file" aria-label="Close ${esc(f.name)}">✕</button>
+      <small>${n} waypoints${d ? `, <span style="color:var(--orange)">${d} edited</span>` : ''}${f.app ? ', from ' + f.app : ''}
+      ${f.kind !== 'usr' && f.kind !== 'new' ? `<br><label><input type="checkbox" data-a="score" ${f.isScore ? 'checked' : ''} style="width:14px;height:14px;vertical-align:-2px"> This is the official SCORE file</label>` : ''}</small></div>`;
+  }).join('');
+  const cs = $('#courseSel'), cur = S.courseLineId;
+  cs.innerHTML = '<option value="">No course line</option>' + seriesList().map(g => `<option value="${g.key}" ${g.key === cur ? 'selected' : ''}>${esc(g.prefix)}${g.lines[0].n} to ${g.lines[g.lines.length - 1].n}, joined</option>`).join('') + S.lines.map(l => `<option value="${l.id}" ${String(l.id) === cur ? 'selected' : ''}>${esc(l.name)} (${esc(fileOf(l).name.slice(0, 22))})</option>`).join('');
+  $('#srcFilter').innerHTML = '<option value="">All files</option>' + S.files.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  $('#srcRow').style.display = S.files.length > 1 ? 'flex' : 'none';
+  const icf = $('#iconFilter'), icv = icf.value;
+  icf.innerHTML = '<option value="">All icons</option><option value="_none">Blue dots (SCORE points)</option>' + ICONS.slice(1).map(([k]) => `<option value="${k}">${LABEL[k]}</option>`).join(''); icf.value = icv;
+  const st = $('#courseStatus');
+  st.className = S.course ? 'good' : '';
+  st.innerHTML = !S.files.length ? 'Open a file that contains the course.'
+    : !S.course ? 'No course line found. Race miles are read from the “RM” written in each note. If you have the SCORE course file, open it and tick “This is the official SCORE file”.'
+    : `<b>Course found, ${S.course.lengthMi.toFixed(0)} miles long.</b><br>${S.rmCal ? `Race miles are matched to ${S.rmCal.length} SCORE mile markers.` : 'Race miles are measured along the line and may drift from SCORE’s official miles.'}`;
+  barInfo(); cornerToggle();
+}
+function cornerToggle() {
+  const cf = S.files.filter(f => f.corners), on = cf.some(f => f.visible);
+  const set = (id, show, val) => { const b = $(id); b.style.display = show ? '' : 'none'; b.classList.toggle('on', val); b.setAttribute('aria-pressed', val); };
+  set('#tTrails', S.files.length, S.showLines);
+  set('#tWpts', S.files.length, S.showWpts);
+  $('#tWptsMenu').style.display = S.files.length ? '' : 'none';
+  $('#tWpts').textContent = S.showWpts && S.hideSym.size ? `Waypoints (${S.hideSym.size} hidden)` : 'Waypoints';
+  if (!$('#symMenu').hidden) renderSymMenu();
+  set('#tCorners', cf.length, on);
+  $('#showGroup').style.display = S.files.length ? '' : 'none';
+}
+function barInfo() {
+  const dirty = S.wpts.filter(w => w.dirty && !w.deleted).length;
+  $('#barInfo').textContent = dirty ? `${dirty} waypoint${dirty > 1 ? 's' : ''} edited, not exported yet` : '';
+}
+$('#files').addEventListener('change', e => {
+  const f = S.files.find(x => x.id === +e.target.closest('.file').dataset.id);
+  if (e.target.dataset.a === 'vis') f.visible = e.target.checked;
+  if (e.target.dataset.a === 'score') f.isScore = e.target.checked;
+  renderTable(); draw();
+});
+$('#files').addEventListener('click', e => {
+  if (e.target.dataset.a !== 'rm') return;
+  const id = +e.target.closest('.file').dataset.id;
+  S.files = S.files.filter(f => f.id !== id); S.wpts = S.wpts.filter(w => w.fileId !== id); S.lines = S.lines.filter(l => l.fileId !== id);
+  if (S.sel && S.sel.fileId === id) S.sel = null;
+  if (!S.lines.find(l => String(l.id) === S.courseLineId)) S.courseLineId = '';
+  recompute(); renderAll();
+});
+$('#courseSel').onchange = e => { S.courseLineId = e.target.value; S.rmCal = null; $('#calibInfo').textContent = ''; recompute(); fit(); renderAll(); };
+$('#courseStart').oninput = () => { S.rmCal = null; $('#calibInfo').textContent = ''; recompute(); renderAll(); };
+function calibrate(silent) {
+  if (!S.course) { silent || toast('Choose the course line first.'); return; }
+  // 1) SCORE race-mile markers named "RM 385" are ground truth: use them as control points
+  const ctl = [];
+  for (const w of S.wpts) { const m = /^\s*RM\s*([0-9]+(?:\.[0-9]+)?)\s*$/i.exec(w.name || ''); if (!m || w.deleted) continue; proj(w); if (w._off < 200) ctl.push([w._m, +m[1]]); }
+  ctl.sort((x, y) => x[0] - y[0]);
+  const mono = []; for (const c of ctl) if (!mono.length || (c[0] > mono[mono.length - 1][0] && c[1] > mono[mono.length - 1][1])) mono.push(c);
+  if (mono.length >= 5) {
+    S.rmCal = mono; $('#courseStart').value = (mono[0][1] - mono[0][0]).toFixed(1);
+    recompute(); if (!silent) renderAll();
+    $('#calibInfo').textContent = `Matched ${mono.length} markers, from RM ${mono[0][1]} to RM ${mono[mono.length - 1][1]}.`;
+    return;
+  }
+  // 2) otherwise: one offset from RM values written in notes
+  S.rmCal = null; const d = [];
+  for (const w of S.wpts) { const m = /\bRM\s*([0-9]+(?:\.[0-9]+)?)/i.exec(w.note || ''); if (!m || w.deleted) continue; proj(w); if (w._off < 200) d.push(+m[1] - w._m); }
+  if (d.length < 5) { silent || toast('No SCORE mile markers or notes with an RM were found near the course.'); return; }
+  d.sort((x, y) => x - y); const q = f => d[Math.floor(f * (d.length - 1))];
+  $('#courseStart').value = q(.5).toFixed(1); recompute(); if (!silent) renderAll();
+  $('#calibInfo').textContent = `No mile markers found, so race miles are lined up with the RM written in ${d.length} notes.`;
+}
+$('#calib').onclick = () => calibrate(false);
+function renderIconMap() {
+  const counts = {};
+  for (const w of S.wpts) if (w.rawIcon != null && !w.deleted) counts[w.rawIcon] = (counts[w.rawIcon] || 0) + 1;
+  const ids = Object.keys(counts).sort((a, b) => a - b);
+  if (!ids.length) { $('#iconmap').innerHTML = 'Open a .usr file to see the icon numbers it uses.'; $('#iconmap').className = 'mute'; return; }
+  $('#iconmap').className = '';
+  $('#iconmap').innerHTML = `<div class="mute small" style="margin-bottom:6px">The Lowrance stores each icon as a number. Set what each number means here if an icon shows up wrong.</div>` +
+    ids.map(id => `<div class="row"><span style="width:34px">${id}</span><span class="mute small" style="width:60px">${counts[id]} used</span><select data-id="${id}" class="iconsel" style="flex:1">${iconOptions(S.iconMap[id] ?? '')}</select></div>`).join('');
+}
+$('#iconmap').addEventListener('change', e => {
+  const id = e.target.dataset.id; if (id == null) return;
+  S.iconMap[id] = e.target.value; try { localStorage.setItem('ck.iconMap', JSON.stringify(S.iconMap)); } catch (_) {}
+  renderTable(); renderEditor(); draw();
+});
+const LEARNED_ICONS = { 0: '', 1: 'other', 12: 'rock', 14: 'house', 17: 'gas', 22: 'check', 23: 'caution', 32: 'deer', 33: 'hooves', 37: 'skull', 61: 'star' }; // from B1K2026_COMBINED_TEAM.usr (Elite FS 9)
+S.iconMap = { ...LEARNED_ICONS };
+try { Object.assign(S.iconMap, JSON.parse(localStorage.getItem('ck.iconMap') || '{}')); } catch (_) {}
+
+function renderAll() { renderFiles(); renderIconMap(); renderTable(); renderEditor(); draw(); $('#bUndo').disabled = !S.undo.length; $('#bRules').disabled = $('#bCorners').disabled = $('#bExport').disabled = !S.files.length; }
+
+// ---------------- undo ----------------
+function snapshot(label) {
+  S.undo.push({ label, wpts: S.wpts.map(w => ({ ...w })), files: S.files.map(f => f.id) });
+  if (S.undo.length > 30) S.undo.shift();
+  $('#bUndo').disabled = false;
+}
+$('#bUndo').onclick = () => {
+  const s = S.undo.pop(); if (!s) return;
+  S.wpts = s.wpts; S.sel = null; recompute(); renderAll(); toast(`Undone: ${s.label}`);
+};
+
+// ---------------- dialog helper ----------------
+const dlg = $('#dlg');
+function openDlg(title, html, buttons) {
+  $('#dlgT').textContent = title; $('#dlgB').innerHTML = html; const ft = $('#dlgF'); ft.innerHTML = '';
+  for (const [label, fn, cls] of buttons || []) { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; ft.appendChild(b); }
+  if (!dlg.open) dlg.showModal();
+}
+$('#dlgX').onclick = () => dlg.close();
+
+// ---------------- rules ----------------
+const R = { from: 320, to: 812, icons: true, overwrite: false, callouts: true, defCallout: 500, alarm: true, stops: true, danger: true, nearFt: 300,
+  scoreByName: true, scoreRe: '^(VCP|SZ\\s?\\d|END SZ|STOP\\b|CHECK\\b|DANGER \\d|RM \\d|H\\d+K\\d+|R-\\d)', alarmOff: false, corners: false, merge: false, mergeFt: 50, stopRe: '\\bSTOP\\b', checkRe: 'CHECK|\\bVCP\\b|\\bCP\\s?\\d', dangerRe: 'DANGER' };
+function classify(text) {
+  const t = text.toLowerCase();
+  if ((t.match(/check\s*up/g) || []).length >= 3 || /cliff|drop ?off|\bdrop\b|ledge|danger/.test(t)) return 'skull';
+  if (/\bpit\b/.test(t)) return 'house';
+  if (/\bgas\b|diesel|\bfuel\b/.test(t)) return 'gas';
+  if (/cattle ?guard|\bgate\b|\bfence\b/.test(t)) return 'hooves';
+  if (/\bcows?\b|\bcattle\b|\bhorses?\b|\bgoats?\b|\bburros?\b|\bdonkeys?\b|livestock/.test(t)) return 'deer';
+  if (/flat ?out/.test(t) && /rise|crest/.test(t)) return 'star';
+  if (/\brocks?\b|rocky|boulders?/.test(t)) return 'rock';
+  return 'caution';
+}
+function rulesDialog() {
+  const chk = k => `<input data-r="${k}" type="checkbox" ${R[k] ? 'checked' : ''}>`;
+  const num = (k, w = 84) => `<input data-r="${k}" type="number" value="${esc(R[k])}" style="width:${w}px">`;
+  const txt = (k, w) => `<input data-r="${k}" type="text" value="${esc(R[k])}" style="width:${w}px">`;
+  const opt = (k, title, sub) => `<label class="opt">${chk(k)}<span><b>${title}</b><small>${sub}</small></span></label>`;
+  openDlg('Clean up notes', `
+    <p class="lead">Applies your pace-note rules to every waypoint in a range of race miles. Nothing changes until you press Apply, and Undo puts everything back.</p>
+    <div class="row"><b>Race miles</b>${num('from')}<span>to</span>${num('to')}<span class="mute small">Waypoints outside this range are left exactly as they are.</span></div>
+    ${opt('icons', 'Pick icons from the words', 'Skull for cliffs, drops, danger or “check up” three times. Deer for animals. Hooves for cattle guards and gates. Star for flat out over a rise. Rock, pit and gas by name. Caution for the rest.')}
+    ${opt('callouts', 'Write the race mile and callout into each note', 'Notes become “#12 - RM 385.6 - 1000ft - Flat out”. A 1000 or 500 said in the note sets the callout.')}
+    ${opt('alarm', 'Turn alarms on, set to the callout distance', 'The Lowrance alarm sounds 500 or 1000 ft before each waypoint in the range.')}
+    ${opt('alarmOff', 'Turn alarms off', 'Removes the alarm from every waypoint in the range. Use this or the one above, not both.')}
+    ${opt('stops', 'Tidy SCORE stops', 'Removes SCORE stop points except checks. If a stop sits on one of your waypoints, “STOP” is added to its name.')}
+    ${opt('danger', 'Add a skull at SCORE danger points you have not marked', 'Only where none of your own waypoints is close by.')}
+    ${opt('corners', 'Remove corner-only notes', 'Drops notes that are only L1–L6, R1–R6, hard, slight, stay or turn left or right, straight or accelerate. Anything mentioning 180 is kept.')}
+    ${opt('merge', 'Combine notes that sit on the same spot', 'Joins them into one waypoint with the notes separated by “ / ”.')}
+    <details class="sec"><summary>More options</summary>
+      <label class="row">${chk('overwrite')} Replace icons that are already set</label>
+      <div class="row">Callout when the note has none ${num('defCallout')} ft</div>
+      <div class="row">“Close by” for stops and danger points means within ${num('nearFt')} ft</div>
+      <div class="row">Combine notes within ${num('mergeFt')} ft of each other</div>
+      <label class="row">${chk('scoreByName')} Spot SCORE points by their names</label>
+      <div class="mute small">Name patterns, for unusual SCORE files:</div>
+      <div class="row small">SCORE point ${txt('scoreRe', 260)}</div>
+      <div class="row small">Stop ${txt('stopRe', 110)} Check ${txt('checkRe', 150)} Danger ${txt('dangerRe', 90)}</div>
+    </details>
+    <div id="preview"></div>`,
+    [['Preview', previewRules], ['Apply', applyRules, 'pri']]);
+  $('#dlgB').oninput = e => { const k = e.target.dataset.r; if (!k) return; R[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? +e.target.value : e.target.value; };
+}
+function planRules() {
+  if (!S.course) throw new Error('This needs race miles. Open the course file, or choose the course line under Setup.');
+  const inR = w => w.rm != null && w.rm >= R.from && w.rm <= R.to;
+  const score = new Set(S.files.filter(f => f.isScore).map(f => f.id));
+  const live = S.wpts.filter(w => !w.deleted);
+  const isScore = w => score.has(w.fileId) || (R.scoreByName && new RegExp(R.scoreRe, 'i').test(w.name));
+  const mine = live.filter(w => !isScore(w));
+  const near = (p, list) => list.find(m => CK.hav(p, m) <= R.nearFt * FT);
+  const ch = [];
+  let noteNo = Math.max(0, ...S.wpts.map(w => +((/^\s*#(\d+)/.exec(w.note || '') || [])[1] || 0)));
+  const re = s => new RegExp(s, 'i');
+  const CORNER = /^\s*(?:[LR]\s?[1-6]|(?:hard|slight|stay|turn|keep)\s+(?:left|right)|st|straight|accelerate)\s*$/i;
+  const gone = new Set();
+  if (R.corners) for (const w of mine.filter(inR)) if (CORNER.test(w.name) && !/180/.test(w.name + w.note) && !(w.note && !CORNER.test(w.note) && w.note !== w.name)) gone.add(w);
+  const mergedInto = new Map();
+  if (R.merge) {
+    const seq = mine.filter(w => inR(w) && !gone.has(w)).sort((x, y) => x.rm - y.rm || (x.seq ?? 0) - (y.seq ?? 0));
+    let head = null;
+    for (const w of seq) {
+      if (head && CK.hav(head, w) <= R.mergeFt * FT) { const m = mergedInto.get(head) || []; m.push(w); mergedInto.set(head, m); gone.add(w); }
+      else head = w;
+    }
+  }
+  for (const w of mine.filter(inR)) {
+    if (gone.has(w)) continue;
+    const extra = (mergedInto.get(w) || []).map(m => m.note && m.note !== m.name ? m.note : m.name);
+    const baseNote = (w.note && w.note !== w.name ? w.note : (w.ext && w.ext.audible ? w.name : w.note)) + (extra.length ? ' / ' + extra.join(' / ') : '');
+    const c = {}, text = w.name + ' ' + baseNote;
+    if (baseNote !== w.note) c.note = baseNote;
+    if (R.icons && (R.overwrite || !iconOf(w))) { const ic = classify(text); if (ic !== iconOf(w)) c.icon = ic; }
+    const callout = /(?<!\d)1000(?!\d)|one thousand/i.test(text) ? 1000 : /(?<!\d)500(?!\d)|five hundred/i.test(text) ? 500 : R.defCallout;
+    const nNow = c.note ?? w.note;
+    if (R.callouts && !/^\s*(#\d+\s*-\s*)?RM\s*\d/i.test(nNow)) c.note = `#${++noteNo} - RM ${fmtMi(w.rm)} - ${callout}ft - ${nNow}`.replace(/ - $/, '');
+    if (R.alarmOff) { if (w.alarmM) c.alarmM = 0; }
+    else if (R.alarm && Math.abs((w.alarmM || 0) - callout * FT) > .5) c.alarmM = callout * FT;
+    if (Object.keys(c).length) ch.push({ w, c });
+  }
+  const adds = [], dels = [];
+  const scorePts = live.filter(w => isScore(w) && inR(w));
+  if (R.stops) for (const s of scorePts.filter(s => re(R.stopRe).test(s.name) && !re(R.checkRe).test(s.name))) {
+    dels.push(s);
+    const m = near(s, mine);
+    if (m && !/\bSTOP\b/.test(m.name)) { const ex = ch.find(x => x.w === m); if (ex) ex.c.name = m.name + ' STOP'; else ch.push({ w: m, c: { name: m.name + ' STOP' } }); }
+  }
+  if (R.danger) for (const d of scorePts.filter(s => re(R.dangerRe).test(s.name))) {
+    if (!near(d, mine)) adds.push({ lat: d.lat, lon: d.lon, name: `DANGER ${fmtMi(d.rm)}`, note: `RM ${fmtMi(d.rm)} | 1000' | SCORE DANGER: ${d.note || d.name}`, icon: 'skull', alarmM: 1000 * FT });
+  }
+  for (const g of gone) dels.push(g);
+  return { ch, adds, dels, gone: gone.size };
+}
+function previewRules() {
+  try {
+    const plan = planRules(), { ch, adds, dels } = plan;
+    const lines = ch.slice(0, 300).map(({ w, c }) => `<div class="chg"><b>RM ${fmtMi(w.rm)}</b> ${esc(w.name)} — ${Object.entries(c).map(([k, v]) => k === 'icon' ? `icon → ${LABEL[v]}` : k === 'alarmM' ? (v ? `alarm → ${Math.round(v / FT)} ft` : 'alarm off') : `${k} → “${esc(v)}”`).join('; ')}</div>`).join('');
+    $('#preview').innerHTML = `<h2>What will change</h2><p>${ch.length} waypoints updated, ${adds.length} skulls added, ${dels.length - (plan.gone || 0)} SCORE stops removed, ${plan.gone || 0} corner or duplicate notes removed.</p>${lines}${ch.length > 300 ? '<p class="mute">…first 300 shown</p>' : ''}`;
+  } catch (e) { $('#preview').innerHTML = `<p style="color:var(--bad)">${esc(e.message)}</p>`; }
+}
+function applyRules() {
+  let plan; try { plan = planRules(); } catch (e) { toast(e.message); return; }
+  snapshot('clean up notes');
+  for (const { w, c } of plan.ch) { Object.assign(w, c); w.dirty = true; }
+  for (const s of plan.dels) s.deleted = true;
+  if (plan.adds.length) { const f = scratchFile(); for (const a of plan.adds) S.wpts.push({ id: newId(), fileId: f.id, time: Date.now(), dirty: true, deleted: false, ...a }); }
+  recompute(); dlg.close(); renderAll();
+  toast(`Done: ${plan.ch.length} updated, ${plan.adds.length} added, ${plan.dels.length} removed. Undo puts it back.`, 6000);
+}
+
+// ---------------- corner calls ----------------
+const CC = { style: 'grade', from: 320, to: 812, minAngle: 20, skip: true, colL: 3, colR: 4 };
+function cornerPlan() {
+  if (!S.course0) throw new Error('This needs the course line. Open the SCORE course file, or choose it under Setup.');
+  const M = CK.M_PER_MI, styles = CC.style === 'both' ? ['grade', 'deg'] : [CC.style];
+  const mine = S.wpts.filter(w => !w.deleted && !fileOf(w).corners);
+  const existing = mine.filter(w => /^\s*[LR]\s?\d|\b(left|right)\b/i.test(w.name));
+  const near = (p) => existing.some(w => CK.hav(w, p) <= 45);
+  const out = {};
+  for (const st of styles) {
+    out[st] = [];
+    for (const c of CORNERS.calls(S.course0.points, st, { minAngle: CC.minAngle })) {
+      const cm = c.entry.s / M, rm = S.rmCal ? calRM(cm) : S.course.startMile + cm;
+      if (rm < CC.from || rm > CC.to) continue;
+      if (CC.skip && (near(c.entry) || near(c.apex))) continue;
+      out[st].push({ ...c, rm });
+    }
+  }
+  return out;
+}
+function cornersDialog() {
+  const sel = (k, v, t) => `<label class="opt"><input type="radio" name="ccStyle" value="${v}" ${CC.style === v ? 'checked' : ''}><span><b>${t[0]}</b><small>${t[1]}</small></span></label>`;
+  const colSel = side => { const k = side === 'L' ? 'colL' : 'colR'; return SYM.palette('caution').map(([hex, nm], i) => `<button data-cc="${k}" data-i="${i}" class="${CC[k] === i ? 'on' : ''}" title="${nm}" aria-label="${nm}">${SYM.html('caution', 22, hex)}</button>`).join(''); };
+  openDlg('Corner calls', `
+    <p class="lead">Adds a rally-style note at the entry of every corner on the course line. Grades were matched against the other team's L1–R6 calls in RM 63–320 and 813–970: the same grade on about half of them, and within one grade on nine in ten. Check them on the pre-run before trusting them.</p>
+    ${sel('s', 'grade', ['L1–L6 and R1–R6', '1 is the tightest, 6 the fastest. Same scale as the other team.'])}
+    ${sel('s', 'deg', ['L 45, L 70, L 90, L 180', 'How far the corner turns, rounded to 45, 70, 90 or 180 degrees.'])}
+    ${sel('s', 'both', ['Both', 'Two separate sets, so you can show either one.'])}
+    <div class="row"><b>Race miles</b><input id="ccFrom" type="number" value="${CC.from}" style="width:84px"><span>to</span><input id="ccTo" type="number" value="${CC.to}" style="width:84px"></div>
+    <div class="row"><label for="ccMin">Ignore bends gentler than</label><input id="ccMin" type="number" value="${CC.minAngle}" step="5" style="width:70px"><span>degrees</span></div>
+    <label class="row"><input id="ccSkip" type="checkbox" ${CC.skip ? 'checked' : ''}> Skip corners that already have a left or right note</label>
+    <div class="row"><span style="width:90px">Left colour</span><span class="swatches">${colSel('L')}</span></div>
+    <div class="row"><span style="width:90px">Right colour</span><span class="swatches">${colSel('R')}</span></div>
+    <div id="ccPrev"></div>`,
+    [['Add corner calls', addCorners, 'pri']]);
+  const b = $('#dlgB');
+  b.oninput = e => {
+    if (e.target.name === 'ccStyle') CC.style = e.target.value;
+    CC.from = +$('#ccFrom').value; CC.to = +$('#ccTo').value; CC.minAngle = +$('#ccMin').value || 0; CC.skip = $('#ccSkip').checked;
+    cornerPreview();
+  };
+  b.onclick = e => { const x = e.target.closest('[data-cc]'); if (!x) return; CC[x.dataset.cc] = +x.dataset.i; b.querySelectorAll(`[data-cc="${x.dataset.cc}"]`).forEach(y => y.classList.toggle('on', y === x)); };
+  cornerPreview();
+}
+function cornerPreview() {
+  try {
+    const plan = cornerPlan();
+    $('#ccPrev').innerHTML = Object.entries(plan).map(([st, cs]) => {
+      const c = {}; cs.forEach(x => { c[x.label] = (c[x.label] || 0) + 1; });
+      const order = st === 'deg' ? ['45', '70', '90', '180'].map(d => ['L ' + d, 'R ' + d]) : ['1', '2', '3', '4', '5', '6'].map(g => ['L' + g, 'R' + g]);
+      return `<p><b>${cs.length} ${st === 'deg' ? 'degree' : 'graded'} calls</b>, lefts in your left colour and rights in your right colour:</p><table class="cc"><tr>${order.map(([l, r]) => `<td>${l} <b>${c[l] || 0}</b></td><td>${r} <b>${c[r] || 0}</b></td>`).join('</tr><tr>')}</tr></table>`;
+    }).join('');
+  } catch (e) { $('#ccPrev').innerHTML = `<p class="notice">${esc(e.message)}</p>`; }
+}
+function addCorners() {
+  let plan; try { plan = cornerPlan(); } catch (e) { toast(e.message); return; }
+  snapshot('add corner calls'); let n = 0;
+  for (const [st, cs] of Object.entries(plan)) {
+    if (!cs.length) continue;
+    const name = `Corners ${st === 'deg' ? 'L45-L180' : 'L1-L6'} RM ${CC.from}-${CC.to}`;
+    let f = S.files.find(x => x.name === name);
+    if (f) { S.wpts.forEach(w => { if (w.fileId === f.id) w.deleted = true; }); } else { f = newFile(name, 'new'); f.corners = true; }
+    for (const c of cs) {
+      const w = { id: newId(), fileId: f.id, lat: c.entry.lat, lon: c.entry.lon, name: c.label, icon: 'caution', rawColor: c.side === 'L' ? CC.colL : CC.colR,
+        note: `RM ${c.rm.toFixed(1)} - ${c.label} - turns ${Math.round(c.angle)}°, ${Math.round(c.radius / FT)} ft radius`, alarmM: 0, time: Date.now(), dirty: true, deleted: false };
+      setMile(w); S.wpts.push(w); n++;
+    }
+  }
+  dlg.close(); renderAll(); draw();
+  toast(`Added ${n} corner calls. They are in their own file under Setup, so you can hide or export them separately.`, 7000);
+}
+
+// ---------------- export ----------------
+let downloads = null;
+(async () => { try { if (window.claude && claude.use) downloads = await claude.use('downloads'); } catch (_) {} })();
+function exportDialog() {
+  const usrs = S.files.filter(f => f.kind === 'usr');
+  openDlg('Export', `
+    <div id="pre"></div>
+    <label class="opt"><input type="checkbox" id="xUsr" ${usrs.length ? 'checked' : 'disabled'}><span><b>Lowrance file (.usr)</b><small>${usrs.length ? 'Ready to load on the Elite FS 9. Your trails and unedited waypoints are kept exactly as they were.' : 'Needs a .usr file exported from your unit to build on. Open one first.'}</small></span></label>
+    <label class="opt"><input type="checkbox" id="xGpx" checked><span><b>GPX file</b><small>Opens in LeadNav, Gaia, Google Earth and most other apps.</small></span></label>
+    <label class="opt"><input type="checkbox" id="xKml"><span><b>KML file</b><small>For Google Earth.</small></span></label>
+    <details class="sec"><summary>More options</summary>
+      <div class="row"><label for="xName">File name</label><input id="xName" value="coursekit-${new Date().toISOString().slice(0, 10)}" style="flex:1"></div>
+      <div class="row"><span>Only race miles</span><input id="xFrom" type="number" placeholder="any"><span>to</span><input id="xTo" type="number" placeholder="any"></div>
+      <div><b>Waypoints from</b></div>${S.files.map(f => `<label class="row"><input type="checkbox" data-x="${f.id}" ${f.visible && !f.isScore ? 'checked' : ''}><span class="sw" style="background:${f.color}"></span> ${esc(f.name)}</label>`).join('')}
+      <div class="row" ${usrs.length > 1 ? '' : 'style="display:none"'}><label for="xBase">Build the Lowrance file on</label><select id="xBase">${usrs.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select></div>
+      <label class="row"><input type="checkbox" id="xLines"> Include the course and tracks in the GPX and KML</label>
+    </details>
+    <div class="howto"><b>Loading it on the Lowrance</b><ol><li>Unzip the download and copy the .usr file to the SD card.</li><li>On the unit, delete all waypoints first. It skips any waypoint it already has.</li><li>Import the file from the SD card.</li></ol></div>`,
+    [['Save .zip', () => preflight(true), 'pri']]);
+  $('#dlgB').oninput = () => preflight(false);
+  preflight(false);
+}
+function exportSet() {
+  const ids = new Set([...document.querySelectorAll('[data-x]')].filter(c => c.checked).map(c => +c.dataset.x));
+  const a = parseFloat($('#xFrom').value), b = parseFloat($('#xTo').value);
+  return S.wpts.filter(w => !w.deleted && ids.has(w.fileId) && (isNaN(a) || (w.rm != null && w.rm >= a)) && (isNaN(b) || (w.rm != null && w.rm <= b)));
+}
+function rawFor(sem) { const e = Object.entries(S.iconMap).find(([, v]) => v === sem); return e ? +e[0] : null; }
+function buildUsr(ws, base) {
+  const p = base.usr, warn = [];
+  const rnd = a => crypto.getRandomValues(a);
+  const recs = [], unmapped = {};
+  const fromBase = new Map(ws.filter(w => w.fileId === base.id).map(w => [w.usrIdx, w]));
+  // base waypoints keep their original order
+  p.wpts.forEach((r, i) => { const w = fromBase.get(i); if (w) recs.push(toRec(w, r)); });
+  for (const w of ws.filter(w => w.fileId !== base.id)) {
+    const f = fileOf(w);
+    if (f.kind === 'usr') recs.push(toRec(w, { ...f.usr.wpts[w.usrIdx], raw: null }, true));
+    else recs.push(toRec(w, CK.newUsrRecord(p, { lat: w.lat, lon: w.lon, name: w.name, desc: w.note, alarm: (w.alarmM || 0) / 1852, timeMs: w.time || Date.now() }, rnd), true));
+  }
+  function toRec(w, r, force) {
+    const sem = iconOf(w); let icon = r.icon;
+    if (w.icon != null && w.icon !== '' && w.icon !== S.iconMap[r.icon]) { const raw = rawFor(w.icon); if (raw != null) icon = raw; else unmapped[w.icon] = (unmapped[w.icon] || 0) + 1; }
+    void sem;
+    const changed = force || w.dirty;
+    const rec = changed ? { ...r, name: w.name, desc: w.note, color: w.rawColor != null ? w.rawColor : r.color, alarm: Math.abs((w.alarmM || 0) - r.alarm * 1852) < 0.5 ? r.alarm : (w.alarmM || 0) / 1852, icon } : r;
+    return { w: rec, dirty: changed };
+  }
+  if (Object.keys(unmapped).length) warn.push(`Icons with no Lowrance id mapped yet: ${Object.entries(unmapped).map(([k, n]) => `${LABEL[k]} ×${n}`).join(', ')}. Those waypoints keep their old icon on the unit. Set the icon numbers under Setup, Advanced.`);
+  // duplicate checks
+  const seen = new Map(); let dupU = 0;
+  for (const r of recs) if (r.w.uuid) { const k = [...r.w.uuid].join(','); if (seen.has(k)) dupU++; seen.set(k, 1); }
+  if (dupU) warn.push(`${dupU} duplicate waypoint UUIDs — the unit may skip them.`);
+  return { bytes: CK.writeUSR(p, recs), warn: [...new Set(warn)], count: recs.length };
+}
+async function preflight(go) {
+  const ws = exportSet(), out = [], files = [], name = ($('#xName').value || 'coursekit').replace(/[^\w.-]+/g, '_');
+  const names = {}; ws.forEach(w => names[w.name] = (names[w.name] || 0) + 1);
+  const dupN = Object.values(names).filter(n => n > 1).length;
+  out.push(`<p><b>${ws.length} waypoints</b> will be exported${dupN ? `. ${dupN} names are used more than once, which is fine but can be confusing on the unit` : ''}.</p>`);
+  try {
+    if ($('#xUsr').checked) {
+      const base = S.files.find(f => f.id === +$('#xBase').value);
+      if (!base) throw new Error('The Lowrance file needs a .usr exported from your unit to build on. Open one first.');
+      const u = buildUsr(ws, base);
+      const check = CK.parseUSR(u.bytes);
+      if (check.wpts.length !== u.count) throw new Error('Self-check failed: re-reading the export gave a different waypoint count.');
+      files.push({ name: `${name}.usr`, data: u.bytes });
+      out.push(`<p><span class="pill ok">Lowrance file checked</span> CourseKit read its own export back and found all ${u.count} waypoints.</p>`);
+      u.warn.slice(0, 20).forEach(w => out.push(`<p class="notice">${esc(w)}</p>`));
+    }
+    const lines = $('#xLines').checked ? S.lines.filter(l => fileOf(l)?.visible) : [];
+    const plain = ws.map(w => ({ ...w, icon: iconOf(w) }));
+    if ($('#xGpx').checked) files.push({ name: `${name}.gpx`, data: new TextEncoder().encode(CK.writeGPX(plain, lines)) });
+    if ($('#xKml').checked) files.push({ name: `${name}.kml`, data: new TextEncoder().encode(CK.writeKML(plain, lines, name)) });
+  } catch (e) { out.push(`<p style="color:var(--bad)">${esc(e.message)}</p>`); go = false; }
+  $('#pre').innerHTML = out.join('');
+  if (!go || !files.length) return;
+  const z = CK.zip(files);
+  if (!downloads) {
+    if (!window.claude) { const r = await saveFile(`${name}.zip`, z, 'application/zip'); if (r !== 'cancel') toast(r === 'shared' ? 'Sent. Unzip it to get your files.' : 'Saved. Unzip it to get your files.'); return; }
+    $('#pre').insertAdjacentHTML('beforeend', '<p style="color:var(--warn)">Saving is not available in this view. Open CourseKit in a browser to save the file.</p>'); return;
+  }
+  try { await downloads.save({ filename: `${name}.zip`, data: new Blob([z]) }); toast('Saved. Unzip it to get your files.'); }
+  catch (e) { toast(e.code === 'declined' ? 'Save cancelled.' : `Save failed: ${e.code || e.message}`); }
+}
+
+// ---------------- inspector ----------------
+function inspector() {
+  const usrs = S.files.filter(f => f.kind === 'usr');
+  let rep = [];
+  const blocks = usrs.map(f => {
+    const p = f.usr, rt = CK.writeUSR(p, p.wpts.map(w => ({ w, dirty: false }))), rt2 = CK.writeUSR(p, p.wpts.map(w => ({ w, dirty: true })));
+    const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+    const ok1 = same(rt, p.bytes), ok2 = same(rt2, p.bytes);
+    const h = p.h;
+    const lines = [
+      `FILE ${f.name} (${p.bytes.length} bytes)`,
+      `format ${h.format} · data stream v${h.dataStreamVersion} · serial ${h.serial} · title "${h.title}" · date "${h.dateStr}"`,
+      `layout: header strings ${p.opt.hu === 0 ? '8-bit text' : p.opt.hu === 1 ? 'UTF-16 byte' : 'UTF-16 char'}-counted, waypoint strings ${p.opt.wu === 1 ? 'byte' : 'char'}-counted, stream version ${p.opt.sv} bytes, flags ${p.opt.fl} bytes`,
+      `other layouts that also fit: ${p.alternatives.length ? p.alternatives.map(o => JSON.stringify(o)).join(' ') : 'none'}`,
+      `waypoints ${p.wpts.length} · routes ${p.routes ? p.routes.length : 'FAILED: ' + p.routeErr} · trails ${p.trails ? p.trails.length + ' (' + p.trailInfo.coordGuess + ', events-count ' + (p.trailInfo.variant.ev ? 'yes' : 'no') + ', uuid ' + (p.trailInfo.variant.uuid ? 'yes' : 'no') + ')' : 'not decoded (kept as raw bytes)'}`,
+      `round trip unchanged: ${ok1 ? 'BYTE-IDENTICAL' : 'DIFFERS'} · full re-encode: ${ok2 ? 'BYTE-IDENTICAL' : 'DIFFERS'}`,
+      ...p.wpts.slice(0, 3).map((w, i) => `wpt[${i}] @${w.offset} "${w.name}" lat ${w.lat.toFixed(6)} lon ${w.lon.toFixed(6)} icon ${w.icon} color ${w.color} flags ${w.flags} sv ${w.sv} alarm ${w.alarm} jd ${w.date} ms ${w.time} desc "${w.desc.slice(0, 60)}"`),
+    ];
+    rep.push(lines.join('\n'));
+    return `<h2>${esc(f.name)}</h2>
+      <p><span class="pill ${ok1 ? 'ok' : 'bad'}">round trip ${ok1 ? 'byte-identical' : 'differs'}</span> <span class="pill ${ok2 ? 'ok' : 'bad'}">re-encode ${ok2 ? 'byte-identical' : 'differs'}</span> <span class="pill ${p.alternatives.length ? 'warn' : 'ok'}">${p.alternatives.length ? 'layout ambiguous' : 'layout unique'}</span> <span class="pill ${p.trails ? 'ok' : 'warn'}">${p.trails ? 'trails decoded' : 'trails kept raw'}</span></p>
+      <pre>${esc(lines.join('\n'))}</pre><details><summary class="mute">First 512 bytes (hex)</summary><pre>${esc(CK.hex(p.bytes, 0, 512))}</pre></details>`;
+  });
+  if (S.failed) { const t = `FAILED ${S.failed.name}\n` + S.failed.attempts.map(a => JSON.stringify(a.o) + ' → ' + a.err).join('\n'); rep.push(t); blocks.push(`<h2>Last file that failed</h2><pre>${esc(t)}</pre>`); }
+  openDlg('USR inspector', (blocks.join('') || '<p class="mute">No USR files loaded.</p>') +
+    '<p class="mute">The USR layout is reverse-engineered. If anything here says DIFFERS or ambiguous, copy the report and send it to Claude.</p>',
+    [['Copy report', async () => { try { await navigator.clipboard.writeText(rep.join('\n\n')); toast('Report copied'); } catch (_) { toast('Copy blocked — select the text instead'); } }]]);
+}
+
+// ---------------- saving files (web app and home-screen app) ----------------
+// On iPhone the share sheet is the reliable way out of a home-screen app (Save to Files, AirDrop, Mail);
+// elsewhere a normal download.
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+async function saveFile(name, data, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  if (IS_IOS && navigator.canShare) {
+    try { const file = new File([blob], name, { type }); if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return 'shared'; } }
+    catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
+  }
+  const url = URL.createObjectURL(blob); const el = document.createElement('a'); el.href = url; el.download = name;
+  document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); return 'saved';
+}
+window.CKSave = saveFile;
+// iOS greys out file types it doesn't know (like .usr) when the picker filters by extension, so don't filter there.
+if (IS_IOS) $('#fileIn').removeAttribute('accept');
+
+// ---------------- wiring ----------------
+$('#bOpen').onclick = () => $('#fileIn').click();
+$('#bOpen2').onclick = () => $('#fileIn').click();
+$('#addDone').onclick = () => { S.addMode = false; draw(); };
+$('#drop').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = e => { loadFiles([...e.target.files]); e.target.value = ''; };
+const dz = $('#drop');
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('hot'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || e.target === document.documentElement) dz.classList.remove('hot'); }));
+document.addEventListener('drop', e => { if (e.dataTransfer?.files?.length) loadFiles([...e.dataTransfer.files]); });
+$('#bAdd').onclick = () => { S.addMode = true; draw(); };
+$('#keepAdd').onchange = () => {};
+$('#bRules').onclick = rulesDialog;
+$('#bCorners').onclick = cornersDialog;
+function toggleCorners() {
+  const cf = S.files.filter(f => f.corners), on = !cf.some(f => f.visible);
+  cf.forEach(f => f.visible = on);
+  if (!on && S.sel && fileOf(S.sel).corners) S.sel = null;
+  renderAll(); toast(on ? 'Corner calls shown.' : 'Corner calls hidden. Hidden calls are left out of the export.');
+}
+function toggleTrails() { S.showLines = !S.showLines; cornerToggle(); draw(); }
+function toggleWpts() {
+  S.showWpts = !S.showWpts;
+  if (!S.showWpts && S.sel && !fileOf(S.sel).corners) S.sel = null;
+  renderAll(); toast(S.showWpts ? 'Waypoints shown.' : 'Waypoints hidden from the map and list. They are still exported.');
+}
+function renderSymMenu() {
+  const c = {};
+  for (const w of S.wpts) { if (w.deleted || fileOf(w).corners || !fileOf(w).visible) continue; const k = symKey(w); c[k] = (c[k] || 0) + 1; }
+  const keys = Object.keys(c).sort((x, y) => c[y] - c[x]);
+  $('#symMenu').innerHTML = `<div class="smh"><b>Symbols to show</b><span><button data-sa="all">All</button><button data-sa="none">None</button></span></div>` +
+    (keys.length ? keys.map(k => `<label class="smr"><input type="checkbox" data-sym="${k}" ${S.hideSym.has(k) ? '' : 'checked'}>${SYM.html(k, 22)}<span>${k === 'dot' ? 'Dots (SCORE points)' : LABEL[k]}</span><span class="mute">${c[k]}</span></label>`).join('') : '<div class="mute">No waypoints loaded.</div>') +
+    (S.showWpts ? '' : '<div class="notice small" style="margin-top:8px">Waypoints are switched off. Turn them on to see these.</div>');
+}
+function symMenuOpen(open) { const m = $('#symMenu'); m.hidden = !open; $('#tWptsMenu').setAttribute('aria-expanded', open); if (open) renderSymMenu(); }
+$('#tWptsMenu').onclick = e => { e.stopPropagation(); symMenuOpen($('#symMenu').hidden); };
+$('#symMenu').onclick = e => e.stopPropagation();
+$('#symMenu').onchange = e => { const k = e.target.dataset.sym; if (k == null) return; if (e.target.checked) S.hideSym.delete(k); else S.hideSym.add(k); if (S.sel && S.hideSym.has(symKey(S.sel))) S.sel = null; renderAll(); };
+$('#symMenu').addEventListener('click', e => { const b = e.target.closest('[data-sa]'); if (!b) return; S.hideSym.clear(); if (b.dataset.sa === 'none') $('#symMenu').querySelectorAll('[data-sym]').forEach(x => S.hideSym.add(x.dataset.sym)); if (!S.showWpts) S.showWpts = true; S.sel = null; renderAll(); });
+document.addEventListener('click', () => { if (!$('#symMenu').hidden) symMenuOpen(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#symMenu').hidden) symMenuOpen(false); });
+$('#tCorners').onclick = toggleCorners; $('#tTrails').onclick = toggleTrails; $('#tWpts').onclick = toggleWpts;
+$('#bExport').onclick = exportDialog;
+$('#bInspect').onclick = inspector;
+$('#zIn').onclick = () => zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, 1);
+$('#zOut').onclick = () => zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, -1);
+$('#zFit').onclick = fit;
+$('#zDrop').onclick = () => addAt(fromS(cv.clientWidth / 2, cv.clientHeight / 2), matchMedia('(min-width:1001px)').matches);
+let geoId = null;
+$('#zMe').onclick = () => {
+  if (geoId != null) { if (!S.follow && S.me) { S.follow = true; S.view.cx = wx(S.me.lon); S.view.cy = wy(S.me.lat); draw(); return; } navigator.geolocation.clearWatch(geoId); geoId = null; S.me = null; $('#zMe').classList.remove('on'); draw(); return; }
+  if (!navigator.geolocation) { toast('This browser has no GPS.'); return; }
+  $('#zMe').classList.add('on'); S.follow = true;
+  geoId = navigator.geolocation.watchPosition(p => {
+    S.me = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, hdg: p.coords.heading };
+    if (S.follow) { S.view.cx = wx(S.me.lon); S.view.cy = wy(S.me.lat); if (S.view.z < 13) S.view.z = 15; }
+    schedDraw();
+  }, e => { toast(window.claude ? 'GPS is blocked on claude.ai. Use your hosted copy to see your position.' : `GPS: ${e.message}`); $('#zMe').classList.remove('on'); geoId = null; }, { enableHighAccuracy: true, maximumAge: 2000 });
+};
+try { const b = localStorage.getItem('ck.basemap'); if (b && b in TILES.P) S.basemap = b; const d = localStorage.getItem('ck.dim'); if (d != null) S.dim = +d; } catch (_) {}
+$('#basemap').innerHTML = Object.entries(TILES.P).map(([k, v]) => `<option value="${k}" ${k === S.basemap ? 'selected' : ''}>${v ? v.name.replace(/ \(.*/, '') : 'No background'}</option>`).join('');
+$('#basemap').onchange = e => { S.basemap = e.target.value; try { localStorage.setItem('ck.basemap', S.basemap); } catch (_) {} draw(); };
+$('#dim').value = S.dim; $('#dim').oninput = e => { S.dim = +e.target.value; try { localStorage.setItem('ck.dim', S.dim); } catch (_) {} draw(); };
+$('#bLabels').onclick = () => { S.labels = !S.labels; $('#bLabels').classList.toggle('on', S.labels); draw(); };
+$('#bLabels').classList.add('on');
+showPanel('setup'); renderAll();
+window.CKImport = (name, text) => { addXML(name, 'gpx', CK.parseGPX(text, DOMParser)); recompute(); fit(); showPanel('list'); renderAll(); };
+})();
+
+</script>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+
+const FT = 0.3048;
+const D = { started: null, wpts: [], track: [], transcript: [], nextNo: 1, segs: [] }; // persisted
+const fixes = []; // ring of recent GPS fixes
+let lastStart = 0, running = false, rec = null, recStream = null, segStart = 0, segTimer = null, wakeLock = null, audioCtx = null, course = null, sr = null, srSession = 0, srWanted = false, restarts = 0;
+const pad = n => String(n).padStart(2, '0');
+const hhmmss = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const set = (id, txt, cls) => { const e = $(id); e.textContent = txt; e.className = cls || ''; };
+
+// ---------- storage (IndexedDB) ----------
+let db = null;
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('pacenote', 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore('kv'); r.result.createObjectStore('audio', { keyPath: 'start' }); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const tx = (store, mode, fn) => new Promise((res, rej) => { const t = db.transaction(store, mode); const out = fn(t.objectStore(store)); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); });
+let saveT = null;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => db && tx('kv', 'readwrite', s => s.put(JSON.stringify(D), 'day')).catch(e => log('save failed: ' + e.message)), 400); }
+
+// ---------- GPS ----------
+let watchId = null;
+function startGps() {
+  if (!navigator.geolocation) { set('#sGps', 'not available', 'bad'); return; }
+  watchId = navigator.geolocation.watchPosition(p => {
+    const f = { t: p.timestamp || Date.now(), lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, spd: p.coords.speed, hdg: p.coords.heading };
+    fixes.push(f); if (fixes.length > 300) fixes.shift();
+    const last = D.track[D.track.length - 1];
+    if (!last || f.t - last.t > 5000 || CK.hav(last, f) > 15) { D.track.push({ t: f.t, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6) }); save(); }
+    set('#sGps', `±${Math.round(f.acc / FT)} ft${f.spd != null ? ` · ${Math.round(f.spd * 2.23694)} mph` : ''}`, f.acc < 30 ? 'ok' : 'warn');
+    if (course) { const r = CK.project(course, f); set('#sRm', `${r.mile.toFixed(1)}${r.offM > 300 ? ' (off course)' : ''}`, r.offM > 300 ? 'warn' : 'ok'); }
+  }, e => set('#sGps', e.message || 'error', 'bad'), { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+function fixAt(t) {
+  if (!fixes.length) return { t, lat: null, lon: null, stale: true };
+  let best = fixes[fixes.length - 1];
+  for (const f of fixes) if (Math.abs(f.t - t) < Math.abs(best.t - t)) best = f;
+  return { ...best, t, stale: Math.abs(best.t - t) > 5000 };
+}
+
+// ---------- speech ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const engine = () => PV.Engine({
+  lock: now => fixAt(now - 300),
+  drop: w => dropWaypoint(w),
+  cancel: () => cancelLast(),
+  transcript: (text, now) => { D.transcript.push({ t: now, text }); save(); log(`${hhmmss(now)}  ${text}`); },
+  update: w => { const d = D.wpts.find(x => x.id === w.id); if (d) Object.assign(d, { note: w.note, icon: w.icon, callout: w.callout, heard: w.heard }); renderWps(); save(); },
+}, { defCallout: +$('#defCallout').value || 500 });
+let E = null;
+function startSpeech() {
+  if (!SR) { set('#sSpeech', 'not supported in this browser', 'bad'); return; }
+  srWanted = true; srSession++;
+  sr = new SR(); sr.lang = 'en-US'; sr.continuous = true; sr.interimResults = true;
+  const sess = srSession;
+  sr.onstart = () => { lastStart = Date.now(); set('#sSpeech', 'listening', 'ok'); $('#banner').style.display = 'none'; };
+  sr.onresult = e => {
+    const now = Date.now();
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i], text = r[0].transcript, key = `${sess}:${i}`;
+      showHeard(text, r.isFinal);
+      if (r.isFinal) E.final(key, text, now); else E.interim(key, text, now);
+    }
+  };
+  sr.onerror = e => { log(`speech error: ${e.error}`); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { srWanted = false; needTap(); } };
+  sr.onend = () => {
+    if (!running || !srWanted) { set('#sSpeech', 'off', 'mute'); return; }
+    restarts++; set('#sSpeech', `restarting (${restarts})`, 'warn');
+    const quick = Date.now() - lastStart < 2000;
+    setTimeout(() => { try { sr.start(); } catch (err) { log('restart failed: ' + err.message); needTap(); } }, quick ? 1500 : 250);
+  };
+  try { sr.start(); } catch (err) { log('speech start failed: ' + err.message); needTap(); }
+}
+function needTap() { set('#sSpeech', 'stopped — tap banner', 'bad'); $('#banner').style.display = 'block'; beep(220, .4); }
+$('#banner').onclick = () => { if (running) { try { sr && sr.abort(); } catch (_) {} startSpeech(); } };
+function showHeard(text, fin) {
+  const h = $('#heard'); h.className = fin ? '' : 'mute';
+  h.innerHTML = text.replace(/[&<]/g, c => c === '&' ? '&amp;' : '&lt;').replace(/\bway\s?-?points?\b/gi, m => `<span class="wake">${m}</span>`);
+}
+
+// ---------- waypoints ----------
+function dropWaypoint(w) {
+  const f = w.fix || fixAt(Date.now());
+  const d = { id: D.nextNo, name: `W${String(D.nextNo).padStart(3, '0')}`, t: w.t, lat: f.lat, lon: f.lon, acc: f.acc, spd: f.spd, stale: !!f.stale, note: w.note, icon: w.icon, callout: w.callout, heard: w.heard };
+  w.id = d.id; D.nextNo++;
+  if (course && d.lat != null) { const r = CK.project(course, d); d.rm = +r.mile.toFixed(2); d.offFt = Math.round(r.offM / FT); }
+  D.wpts.push(d); save(); renderWps();
+  beep(880, .12); setTimeout(() => beep(1320, .12), 140);
+  if ($('#optSay').checked && window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance(`${d.icon}, ${d.callout}${d.rm != null ? `, mile ${Math.round(d.rm)}` : ''}`));
+  if (d.lat == null) log('⚠ waypoint dropped without a GPS fix');
+}
+function cancelLast() {
+  const w = [...D.wpts].reverse().find(x => !x.deleted); if (!w) return;
+  w.deleted = true; save(); renderWps(); beep(440, .15); setTimeout(() => beep(330, .2), 180); log(`deleted ${w.name}`);
+}
+function renderWps() {
+  const ws = D.wpts.filter(w => !w.deleted);
+  $('#sCount').textContent = ws.length;
+  $('#wps').className = ws.length ? '' : 'mute';
+  $('#wps').innerHTML = ws.length ? ws.slice().reverse().slice(0, 30).map(w => `<div class="wp"><div class="ic">${SYM.html(w.icon || 'caution', 28)}</div>
+    <div><b>${w.name}</b> ${w.rm != null ? `· RM ${w.rm.toFixed(1)} ` : ''}· ${w.callout}'<small>${w.note ? w.note.replace(/</g, '&lt;') : '<i>no note yet</i>'}</small>
+    <small>${hhmmss(w.t)} · ${w.lat != null ? `${w.lat.toFixed(5)}, ${w.lon.toFixed(5)}` : 'NO GPS'}${w.stale ? ' · stale fix' : ''}</small></div>
+    <button data-del="${w.id}">✕</button></div>`).join('') : 'None yet. Say “waypoint” to save one.';
+}
+$('#wps').onclick = e => { const id = e.target.dataset.del; if (!id) return; const w = D.wpts.find(x => x.id === +id); w.deleted = true; save(); renderWps(); };
+
+// ---------- audio recording (10-minute segments into IndexedDB) ----------
+async function startRec() {
+  if (!$('#optRec').checked) { set('#sRec', 'off (setting)', 'mute'); return; }
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
+    newSegment();
+  } catch (e) { set('#sRec', 'mic blocked: ' + e.message, 'bad'); }
+}
+function newSegment() {
+  if (!running || !recStream) return;
+  const mime = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
+  rec = new MediaRecorder(recStream, mime ? { mimeType: mime, audioBitsPerSecond: 48000 } : {});
+  const chunks = []; const start = Date.now(); segStart = start;
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    const blob = new Blob(chunks, { type: rec.mimeType || 'audio/mp4' });
+    try { await tx('audio', 'readwrite', s => s.put({ start, end: Date.now(), type: blob.type, blob })); D.segs.push({ start, end: Date.now(), size: blob.size }); save(); audioInfo(); }
+    catch (e) { log('audio save failed: ' + e.message); }
+    if (running) newSegment();
+  };
+  rec.start(1000);
+  set('#sRec', `recording since ${hhmmss(start)}`, 'ok');
+  clearTimeout(segTimer); segTimer = setTimeout(() => rec && rec.state === 'recording' && rec.stop(), 10 * 60 * 1000);
+}
+function audioInfo() { const mb = D.segs.reduce((a, s) => a + s.size, 0) / 1e6; $('#audioInfo').textContent = `${D.segs.length} clips · ${mb.toFixed(0)} MB`; }
+
+// ---------- wake lock & beeps ----------
+async function keepAwake() {
+  try { wakeLock = await navigator.wakeLock.request('screen'); set('#sWake', 'on', 'ok'); wakeLock.addEventListener('release', () => set('#sWake', 'released', 'warn')); }
+  catch (e) { set('#sWake', 'no, set Auto-Lock to Never', 'warn'); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && running) { keepAwake(); if (!srWanted) needTap(); } });
+function beep(freq, dur) {
+  if (!$('#optBeep').checked || !audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.frequency.value = freq; g.gain.value = .25; o.connect(g); g.connect(audioCtx.destination);
+  o.start(); g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + dur); o.stop(audioCtx.currentTime + dur + .02);
+}
+
+// ---------- start / stop ----------
+$('#go').onclick = async () => {
+  if (!running) {
+    running = true; $('#go').textContent = 'Stop'; $('#go').classList.add('on');
+    if (!D.started) { D.started = Date.now(); save(); }
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); await audioCtx.resume(); } catch (_) {}
+    E = engine(); startGps(); keepAwake(); await startRec(); startSpeech();
+    log(`— started ${new Date().toLocaleString()}`);
+  } else {
+    running = false; srWanted = false; $('#go').textContent = 'Resume'; $('#go').classList.remove('on');
+    try { sr && sr.stop(); } catch (_) {}
+    if (rec && rec.state === 'recording') rec.stop();
+    clearTimeout(segTimer); recStream && recStream.getTracks().forEach(t => t.stop()); recStream = null;
+    if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    try { wakeLock && wakeLock.release(); } catch (_) {}
+    set('#sSpeech', 'off', 'mute'); set('#sRec', 'stopped', 'mute'); set('#sGps', 'off', 'mute');
+    log(`— stopped ${new Date().toLocaleString()}`);
+  }
+};
+
+// ---------- course ----------
+if (/iP(hone|ad|od)/.test(navigator.userAgent)) $('#course').removeAttribute('accept');
+$('#course').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const txt = await f.text();
+  const d = f.name.toLowerCase().endsWith('.kml') ? CK.parseKML(txt, DOMParser) : CK.parseGPX(txt, DOMParser);
+  const line = d.lines.sort((a, b) => b.points.length - a.points.length)[0];
+  if (!line) { alert('No track/line in that file'); return; }
+  course = CK.buildCourse(line.points, parseFloat($('#startMile').value) || 0);
+  set('#sRm', `course ${course.lengthMi.toFixed(0)} mi loaded`, 'ok');
+};
+
+// ---------- export ----------
+function dl(name, data, type) { if (window.CKSave) return window.CKSave(name, data, type); }
+const stamp = () => { const d = new Date(D.started || Date.now()); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+function dayGpx() {
+  const ws = D.wpts.filter(w => !w.deleted && w.lat != null);
+  const gw = ws.map((w, i) => ({ lat: w.lat, lon: w.lon, name: w.name, note: `#${i + 1} - ${w.rm != null ? `RM ${w.rm.toFixed(1)} - ` : ''}${w.callout}ft - ${w.note}`, icon: w.icon, time: w.t }));
+  const gpx = CK.writeGPX(gw, D.track.length > 1 ? [{ name: `Pre-run ${stamp()}`, points: D.track }] : []);
+  return gpx;
+}
+$('#toEdit').onclick = () => {
+  if (!D.wpts.some(w => !w.deleted && w.lat != null)) { alert('No waypoints with a GPS position yet.'); return; }
+  if (window.CKImport) { window.CKImport(`PaceNote ${stamp()}.gpx`, dayGpx()); location.hash = 'edit'; }
+};
+$('#xNotes').onclick = () => {
+  const gpx = dayGpx();
+  const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const csv = ['name,time_local,lat,lon,race_mile,off_course_ft,icon,callout_ft,note,heard,gps_accuracy_ft,stale_fix']
+    .concat(D.wpts.filter(w => !w.deleted).map(w => [w.name, new Date(w.t).toLocaleString(), w.lat, w.lon, w.rm ?? '', w.offFt ?? '', w.icon, w.callout, q(w.note), q(w.heard), w.acc != null ? Math.round(w.acc / FT) : '', w.stale ? 'yes' : ''].join(','))).join('\n');
+  const tr = D.transcript.map(x => `${hhmmss(x.t)}  ${x.text}`).join('\n');
+  const te = new TextEncoder();
+  const z = CK.zip([{ name: `pacenote-${stamp()}.gpx`, data: te.encode(gpx) }, { name: `pacenote-${stamp()}.csv`, data: te.encode(csv) }, { name: `transcript-${stamp()}.txt`, data: te.encode(tr) }]);
+  dl(`pacenote-${stamp()}.zip`, z, 'application/zip');
+};
+$('#xAudio').onclick = async () => {
+  if (rec && rec.state === 'recording') rec.requestData && rec.requestData();
+  const segs = await tx('audio', 'readonly', s => s.getAll());
+  $('#audioList').innerHTML = segs.length ? segs.map(s => `<div class="row"><button data-a="${s.start}">${hhmmss(s.start)}–${hhmmss(s.end)}</button><span class="mute">${(s.blob.size / 1e6).toFixed(1)} MB</span></div>`).join('') : '<p class="mute">No saved clips yet (each clip is saved every 10 minutes).</p>';
+  $('#audioList').onclick = e => { const k = +e.target.dataset.a; const s = segs.find(x => x.start === k); if (s) dl(`audio-${stamp()}-${hhmmss(s.start).replace(/:/g, '')}.${s.type.includes('mp4') ? 'm4a' : 'webm'}`, s.blob, s.type); };
+};
+$('#newDay').onclick = async () => {
+  if (!confirm('Clear all waypoints, transcript and audio on this phone? Export first.')) return;
+  await tx('audio', 'readwrite', s => s.clear());
+  Object.assign(D, { started: null, wpts: [], track: [], transcript: [], nextNo: 1, segs: [] }); save(); renderWps(); $('#log').textContent = ''; audioInfo();
+};
+$('#simGo').onclick = () => {
+  if (!E) E = engine();
+  const t = $('#sim').value, now = Date.now(), key = 'sim:' + now;
+  E.interim(key, t, now); E.final(key, t, now + 500); $('#sim').value = '';
+};
+function log(s) { const l = $('#log'); l.textContent = s + '\n' + l.textContent.slice(0, 20000); }
+
+
+// ---------- live map on the Record page ----------
+const RM = { z: 15, cx: null, cy: null, follow: true, base: (() => { try { return localStorage.getItem('ck.basemap') || 'sat'; } catch (_) { return 'sat'; } })() };
+const rcv = $('#rmap'), rctx = rcv.getContext('2d');
+const rwx = lon => (lon + 180) / 360, rwy = lat => { const s = Math.sin(lat * Math.PI / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
+let rraf = 0; const rsched = () => { if (!rraf) rraf = requestAnimationFrame(() => { rraf = 0; rdraw(); }); };
+function rdraw() {
+  const dpr = devicePixelRatio || 1, W = rcv.clientWidth, H = rcv.clientHeight; if (!W) return;
+  if (rcv.width !== W * dpr || rcv.height !== H * dpr) { rcv.width = W * dpr; rcv.height = H * dpr; }
+  rctx.setTransform(dpr, 0, 0, dpr, 0, 0); rctx.fillStyle = '#0d1012'; rctx.fillRect(0, 0, W, H);
+  const me = fixes[fixes.length - 1];
+  if (RM.follow && me) { RM.cx = rwx(me.lon); RM.cy = rwy(me.lat); }
+  if (RM.cx == null) { const t = D.track[D.track.length - 1] || D.wpts.find(w => w.lat != null); if (t) { RM.cx = rwx(t.lon); RM.cy = rwy(t.lat); } else { rctx.fillStyle = '#8b969e'; rctx.font = '13px system-ui'; rctx.textAlign = 'center'; rctx.fillText('Waiting for GPS…', W / 2, H / 2); return; } }
+  const view = { cx: RM.cx, cy: RM.cy, z: RM.z }, k = 256 * 2 ** RM.z;
+  const S2 = (lat, lon) => [(rwx(lon) - RM.cx) * k + W / 2, (rwy(lat) - RM.cy) * k + H / 2];
+  TILES.draw(rctx, RM.base, view, W, H, rsched, .15);
+  $('#rAttr').textContent = TILES.attr(RM.base);
+  const line = (pts, col, w) => { if (pts.length < 2) return; rctx.strokeStyle = col; rctx.lineWidth = w; rctx.beginPath(); pts.forEach((q, i) => { const [x, y] = S2(q.lat, q.lon); i ? rctx.lineTo(x, y) : rctx.moveTo(x, y); }); rctx.stroke(); };
+  if (course) line(course.points, 'rgba(255,138,31,.85)', 3);
+  line(D.track, '#4aa3ff', 2);
+  rctx.textAlign = 'center'; rctx.textBaseline = 'middle';
+  for (const w of D.wpts) { if (w.deleted || w.lat == null) continue; const [x, y] = S2(w.lat, w.lon); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue; const im = SYM.img(w.icon || 'caution', null, rsched); if (im) rctx.drawImage(im, x - 14, y - 14, 28, 28); }
+  if (me) {
+    const [x, y] = S2(me.lat, me.lon), mpp = 156543.034 * Math.cos(me.lat * Math.PI / 180) / 2 ** RM.z;
+    rctx.fillStyle = 'rgba(74,163,255,.18)'; rctx.beginPath(); rctx.arc(x, y, Math.max(8, me.acc / mpp), 0, 7); rctx.fill();
+    if (me.hdg != null && !isNaN(me.hdg)) { const h = (me.hdg - 90) * Math.PI / 180; rctx.fillStyle = '#fff'; rctx.beginPath(); rctx.moveTo(x + Math.cos(h) * 20, y + Math.sin(h) * 20); rctx.lineTo(x + Math.cos(h + 2.5) * 10, y + Math.sin(h + 2.5) * 10); rctx.lineTo(x + Math.cos(h - 2.5) * 10, y + Math.sin(h - 2.5) * 10); rctx.fill(); }
+    rctx.fillStyle = '#4aa3ff'; rctx.strokeStyle = '#fff'; rctx.lineWidth = 3; rctx.beginPath(); rctx.arc(x, y, 8, 0, 7); rctx.fill(); rctx.stroke(); rctx.lineWidth = 1;
+  }
+  if (RM.base !== 'none' && TILES.blocked()) { rctx.fillStyle = '#ff8a1f'; rctx.font = '11px system-ui'; rctx.textAlign = 'left'; rctx.fillText('No map background (offline or blocked)', 8, H - 22); }
+}
+let rdrag = null;
+rcv.addEventListener('pointerdown', e => { rcv.setPointerCapture(e.pointerId); rdrag = { x: e.offsetX, y: e.offsetY, cx: RM.cx, cy: RM.cy }; });
+rcv.addEventListener('pointermove', e => { if (!rdrag || RM.cx == null) return; const k = 256 * 2 ** RM.z; RM.cx = rdrag.cx - (e.offsetX - rdrag.x) / k; RM.cy = rdrag.cy - (e.offsetY - rdrag.y) / k; if (Math.abs(e.offsetX - rdrag.x) + Math.abs(e.offsetY - rdrag.y) > 4) RM.follow = false; rsched(); });
+rcv.addEventListener('pointerup', () => { rdrag = null; });
+$('#rIn').onclick = () => { RM.z = Math.min(19, RM.z + 1); rsched(); };
+$('#rOut').onclick = () => { RM.z = Math.max(3, RM.z - 1); rsched(); };
+$('#rMe').onclick = () => { RM.follow = true; rsched(); };
+const bases = Object.keys(TILES.P);
+$('#rBase').onclick = () => { RM.base = bases[(bases.indexOf(RM.base) + 1) % bases.length]; try { localStorage.setItem('ck.basemap', RM.base); } catch (_) {} $('#rBase').textContent = RM.base === 'none' ? 'Grid' : RM.base === 'sat' ? 'Sat' : RM.base === 'topo' ? 'Topo' : 'St'; rsched(); };
+new ResizeObserver(rsched).observe(rcv);
+$('#rBase').textContent = RM.base === 'none' ? 'Grid' : RM.base === 'sat' ? 'Sat' : RM.base === 'topo' ? 'Topo' : 'St';
+setInterval(() => { if (document.visibilityState === 'visible' && rcv.clientWidth) rsched(); }, 1000);
+// ---------- boot ----------
+(async () => {
+  try {
+    db = await idb();
+    const saved = await tx('kv', 'readonly', s => s.get('day'));
+    if (saved) { Object.assign(D, JSON.parse(saved)); log(`— restored day from ${new Date(D.started || Date.now()).toLocaleString()}`); D.transcript.slice(-50).forEach(x => log(`${hhmmss(x.t)}  ${x.text}`)); $('#go').textContent = D.started ? 'Resume the day' : 'Start the day'; }
+  } catch (e) { log('storage unavailable: ' + e.message); }
+  renderWps(); audioInfo();
+  if (!SR) set('#sSpeech', 'not supported here — use Safari', 'bad');
+  if (!window.isSecureContext) log('⚠ Not on https: GPS and microphone will be blocked. Host this file on an https site.');
+})();
+})();
+
+</script>
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  function show() {
+    let h = location.hash.slice(1);
+    if (h !== 'edit' && h !== 'record') h = (!window.claude && matchMedia('(pointer: coarse)').matches) ? 'record' : 'edit';
+    $('#pageEdit').classList.toggle('on', h === 'edit'); $('#pageRec').classList.toggle('on', h === 'record');
+    $('#tabEdit').classList.toggle('on', h === 'edit'); $('#tabRec').classList.toggle('on', h === 'record');
+    if (h === 'edit') window.dispatchEvent(new Event('resize'));
+  }
+  addEventListener('hashchange', show); show();
+  const tb = $('#theme'), root = document.documentElement;
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme:dark)').matches;
+  try { const t = localStorage.getItem('ck.theme'); if (t) root.dataset.theme = t; } catch (_) {}
+  const lab = () => { tb.textContent = isDark() ? 'Day' : 'Night'; };
+  tb.onclick = () => { root.dataset.theme = isDark() ? 'light' : 'dark'; try { localStorage.setItem('ck.theme', root.dataset.theme); } catch (_) {} lab(); };
+  lab();
+  if (window.claude) {
+    const n = $('#recNote'); n.style.display = 'block';
+    n.innerHTML = '<b>Recording needs your hosted copy.</b><br>claude.ai blocks the microphone and GPS on this page. Open your hosted copy in Safari on the iPhone to record. Editing works fully here.';
+  }
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>
