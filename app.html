@@ -175,6 +175,21 @@ pre{background:var(--field);border:1px solid var(--line);border-radius:8px;paddi
 #rmapWrap .big{position:absolute;left:8px;top:8px;display:flex;gap:6px}
 #rmapWrap .big div{background:#0b0d0fd9;color:#fff;border-radius:10px;padding:5px 10px;font-size:12px;line-height:1.2}
 #rmapWrap .big span{display:block;font-size:20px;font-weight:750;font-variant-numeric:tabular-nums;color:#fff!important}
+#rmapWrap.tall{height:78vh}
+#rmapWrap .ctl button.on{background:var(--acc,#1557c0);color:#fff;border-color:transparent}
+#rBases{position:absolute;left:8px;bottom:20px;display:flex;background:#0b0d0fd9;border-radius:10px;padding:3px;gap:2px}
+#rBases button{min-height:0;height:32px;padding:0 10px;font-size:12px;background:transparent;color:#d6dde1;border:0;border-radius:8px}
+#rBases button.on{background:#fff;color:#14191c;font-weight:650}
+.trails{margin-top:12px}
+.layer{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.layer .sw{width:14px;height:14px;border-radius:4px;flex:none}
+.layer label{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.layer label span{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}
+.layer small{color:var(--mute,#8b969e)}
+#courseSel{flex:1;min-width:0}
+#plotIcons{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:6px;margin:6px 0 4px}
+#plotIcons button{height:48px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center}
+#plotIcons button.on{outline:3px solid var(--acc,#1557c0);outline-offset:-3px}
 #rAttr{position:absolute;left:6px;bottom:4px;font-size:9px;color:#c9d1d6;background:#0009;padding:1px 4px;border-radius:4px;pointer-events:none}
 #pageRec .stat{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
 @media (max-width:520px){#pageRec .stat{grid-template-columns:repeat(2,1fr)}}
@@ -269,6 +284,16 @@ pre{background:var(--field);border:1px solid var(--line);border-radius:8px;paddi
 <dialog id="dlg"><div class="hd"><h3 id="dlgT"></h3><button id="dlgX" class="quiet">Close</button></div><div class="bd" id="dlgB"></div><div class="ft" id="dlgF"></div></dialog>
 </div>
 <div id="pageRec" class="page">
+<dialog id="plotDlg"><div class="hd"><h3 id="plotT">Plot a waypoint</h3><button id="plotX" class="quiet">Cancel</button></div>
+  <div class="bd">
+    <p id="plotWhere" class="mute small" style="margin-top:0"></p>
+    <div id="plotIcons" role="group" aria-label="Symbol"></div>
+    <div class="row"><label for="plotNote" class="small">Note</label></div>
+    <input id="plotNote" type="text" placeholder="e.g. cattle guard, check up" style="width:100%">
+    <div class="row"><label for="plotCall">Callout</label><input id="plotCall" type="text" inputmode="numeric" style="max-width:90px;flex:none"><span class="mute">ft</span></div>
+  </div>
+  <div class="ft"><button id="plotDel" class="danger" style="margin-right:auto">Delete</button><button id="plotHere">Use my position</button><button id="plotSave" class="pri">Save</button></div>
+</dialog>
 <div id="recNote" class="notice" style="display:none"></div>
 <div id="banner" class="notice">Listening stopped. Tap here to start it again.</div>
 <button id="go">Start the day</button>
@@ -276,8 +301,14 @@ pre{background:var(--field);border:1px solid var(--line);border-radius:8px;paddi
 <div id="rmapWrap">
   <canvas id="rmap"></canvas>
   <div class="big"><div>Waypoints<span id="sCount">0</span></div><div>Race mile<span id="sRm">–</span></div></div>
-  <div class="ctl"><button id="rIn" aria-label="Zoom in">+</button><button id="rOut" aria-label="Zoom out">−</button><button id="rMe" title="Back to my position" aria-label="Back to my position">◎</button><button id="rBase" style="font-size:12px" title="Change the map background">Map</button></div>
+  <div class="ctl"><button id="rIn" aria-label="Zoom in">+</button><button id="rOut" aria-label="Zoom out">−</button><button id="rMe" title="Back to my position" aria-label="Back to my position">◎</button><button id="rFit" title="Show all imported trails" aria-label="Show all imported trails">⬚</button><button id="rPlot" title="Plot waypoints by tapping the map" aria-label="Plot waypoints by tapping the map" aria-pressed="false">📍</button><button id="rBig" title="Bigger map" aria-label="Bigger map">⤢</button></div>
+  <div id="rBases" role="group" aria-label="Map background"><button data-b="sat">Satellite</button><button data-b="hybrid">Sat + roads</button><button data-b="streets">Street</button><button data-b="topo">Topo</button></div>
   <div id="rAttr"></div>
+</div>
+<div class="trails">
+  <div class="row"><h2 style="margin:0;flex:1">Trails and notes on the map</h2><button id="trailBtn">Import</button></div>
+  <input id="trailIn" type="file" multiple accept=".usr,.gpx,.kml,.kmz" hidden>
+  <div id="layers"></div>
 </div>
 <div class="stat">
   <div><b>GPS</b><span id="sGps" class="mute">off</span></div>
@@ -295,8 +326,7 @@ pre{background:var(--field);border:1px solid var(--line);border-radius:8px;paddi
   <div id="audioList"></div>
 </div>
 <details><summary>Settings</summary>
-  <div class="row"><label for="course">Course file, to show race miles</label><input id="course" type="file" accept=".gpx,.kml"></div>
-  <div class="row"><label for="startMile">Course starts at mile</label><input id="startMile" type="text" inputmode="decimal" value="0" style="max-width:90px;flex:none"></div>
+  <div class="row"><label for="startMile">Course starts at mile (used when the course has no RM marks)</label><input id="startMile" type="text" inputmode="decimal" value="0" style="max-width:90px;flex:none"></div>
   <div class="row"><label for="defCallout">Callout when none is said</label><input id="defCallout" type="text" inputmode="numeric" value="500" style="max-width:90px;flex:none"><span class="mute">ft</span></div>
   <label class="row"><input id="optRec" type="checkbox" checked> Record audio all day</label>
   <label class="row"><input id="optBeep" type="checkbox" checked> Beep when a waypoint is saved</label>
@@ -787,6 +817,10 @@ const TILES = (() => {
     none: null,
     sat: { name: 'Satellite (Esri)', max: 19, attr: 'Imagery © Esri, Maxar, Earthstar Geographics, GIS user community',
       url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}` },
+    hybrid: { name: 'Satellite + roads (Esri)', max: 19, attr: 'Imagery © Esri, Maxar, Earthstar Geographics · Roads and labels © Esri, HERE, Garmin, OpenStreetMap contributors',
+      layers: ['sat', '_roads', '_labels'] },
+    _roads: { max: 19, url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/${z}/${y}/${x}` },
+    _labels: { max: 19, url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}` },
     topo: { name: 'Topo (OpenTopoMap)', max: 17, attr: 'Map data © OpenStreetMap contributors, SRTM · Style © OpenTopoMap (CC-BY-SA)',
       url: (z, x, y) => `https://${'abc'[(x + y) % 3]}.tile.opentopomap.org/${z}/${x}/${y}.png` },
     streets: { name: 'Streets (OpenStreetMap)', max: 19, attr: '© OpenStreetMap contributors',
@@ -807,6 +841,7 @@ const TILES = (() => {
   // view: { cx, cy (0..1 world), z (fractional) }
   function draw(ctx, p, view, W, H, onLoad, dim) {
     const pr = P[p]; if (!pr) return;
+    if (pr.layers) { pr.layers.forEach((q, i) => draw(ctx, q, view, W, H, onLoad, i === 0 ? dim : 0)); return; }
     const tz = Math.max(0, Math.min(pr.max, Math.round(view.z)));
     const n = 2 ** tz, k = 256 * 2 ** view.z, ts = k / n;
     const x0 = Math.floor((view.cx - W / 2 / k) * n), x1 = Math.floor((view.cx + W / 2 / k) * n);
@@ -825,7 +860,7 @@ const TILES = (() => {
     if (dim > 0) { ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0, 0, W, H); }
   }
   const blocked = () => fails > 3 && loads === 0;
-  return { P, draw, blocked, attr: p => P[p] ? P[p].attr : '' };
+  return { P, draw, blocked, attr: p => P[p] ? P[p].attr || '' : '', list: () => Object.keys(P).filter(k => k[0] !== '_') };
 })();
 
 </script>
@@ -1892,7 +1927,7 @@ $('#zMe').onclick = () => {
   }, e => { toast(window.claude ? 'GPS is blocked on claude.ai. Use your hosted copy to see your position.' : `GPS: ${e.message}`); $('#zMe').classList.remove('on'); geoId = null; }, { enableHighAccuracy: true, maximumAge: 2000 });
 };
 try { const b = localStorage.getItem('ck.basemap'); if (b && b in TILES.P) S.basemap = b; const d = localStorage.getItem('ck.dim'); if (d != null) S.dim = +d; } catch (_) {}
-$('#basemap').innerHTML = Object.entries(TILES.P).map(([k, v]) => `<option value="${k}" ${k === S.basemap ? 'selected' : ''}>${v ? v.name.replace(/ \(.*/, '') : 'No background'}</option>`).join('');
+$('#basemap').innerHTML = TILES.list().map(k => [k, TILES.P[k]]).map(([k, v]) => `<option value="${k}" ${k === S.basemap ? 'selected' : ''}>${v ? v.name.replace(/ \(.*/, '') : 'No background'}</option>`).join('');
 $('#basemap').onchange = e => { S.basemap = e.target.value; try { localStorage.setItem('ck.basemap', S.basemap); } catch (_) {} draw(); };
 $('#dim').value = S.dim; $('#dim').oninput = e => { S.dim = +e.target.value; try { localStorage.setItem('ck.dim', S.dim); } catch (_) {} draw(); };
 $('#bLabels').onclick = () => { S.labels = !S.labels; $('#bLabels').classList.toggle('on', S.labels); draw(); };
@@ -1937,7 +1972,7 @@ function startGps() {
     const last = D.track[D.track.length - 1];
     if (!last || f.t - last.t > 5000 || CK.hav(last, f) > 15) { D.track.push({ t: f.t, lat: +f.lat.toFixed(6), lon: +f.lon.toFixed(6) }); save(); }
     set('#sGps', `±${Math.round(f.acc / FT)} ft${f.spd != null ? ` · ${Math.round(f.spd * 2.23694)} mph` : ''}`, f.acc < 30 ? 'ok' : 'warn');
-    if (course) { const r = CK.project(course, f); set('#sRm', `${r.mile.toFixed(1)}${r.offM > 300 ? ' (off course)' : ''}`, r.offM > 300 ? 'warn' : 'ok'); }
+    if (course) { const r = raceMile(f); set('#sRm', `${r.mile.toFixed(1)}${r.offM > 300 ? ' (off course)' : ''}`, r.offM > 300 ? 'warn' : 'ok'); }
   }, e => set('#sGps', e.message || 'error', 'bad'), { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
 }
 function fixAt(t) {
@@ -1990,9 +2025,9 @@ function showHeard(text, fin) {
 // ---------- waypoints ----------
 function dropWaypoint(w) {
   const f = w.fix || fixAt(Date.now());
-  const d = { id: D.nextNo, name: `W${String(D.nextNo).padStart(3, '0')}`, t: w.t, lat: f.lat, lon: f.lon, acc: f.acc, spd: f.spd, stale: !!f.stale, note: w.note, icon: w.icon, callout: w.callout, heard: w.heard };
+  const d = { plotted: !!w.plotted, id: D.nextNo, name: `W${String(D.nextNo).padStart(3, '0')}`, t: w.t, lat: f.lat, lon: f.lon, acc: f.acc, spd: f.spd, stale: !!f.stale, note: w.note, icon: w.icon, callout: w.callout, heard: w.heard };
   w.id = d.id; D.nextNo++;
-  if (course && d.lat != null) { const r = CK.project(course, d); d.rm = +r.mile.toFixed(2); d.offFt = Math.round(r.offM / FT); }
+  if (course && d.lat != null) { const r = raceMile(d); if (r.offM <= 800) d.rm = +r.mile.toFixed(2); d.offFt = Math.round(r.offM / FT); }
   D.wpts.push(d); save(); renderWps();
   beep(880, .12); setTimeout(() => beep(1320, .12), 140);
   if ($('#optSay').checked && window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance(`${d.icon}, ${d.callout}${d.rm != null ? `, mile ${Math.round(d.rm)}` : ''}`));
@@ -2072,17 +2107,8 @@ $('#go').onclick = async () => {
   }
 };
 
-// ---------- course ----------
-if (/iP(hone|ad|od)/.test(navigator.userAgent)) $('#course').removeAttribute('accept');
-$('#course').onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
-  const txt = await f.text();
-  const d = f.name.toLowerCase().endsWith('.kml') ? CK.parseKML(txt, DOMParser) : CK.parseGPX(txt, DOMParser);
-  const line = d.lines.sort((a, b) => b.points.length - a.points.length)[0];
-  if (!line) { alert('No track/line in that file'); return; }
-  course = CK.buildCourse(line.points, parseFloat($('#startMile').value) || 0);
-  set('#sRm', `course ${course.lengthMi.toFixed(0)} mi loaded`, 'ok');
-};
+// ---------- course: see imported trails below ----------
+$('#startMile').onchange = () => { buildCourseFromLayers(); rsched(); };
 
 // ---------- export ----------
 function dl(name, data, type) { if (window.CKSave) return window.CKSave(name, data, type); }
@@ -2137,44 +2163,205 @@ function rdraw() {
   rctx.setTransform(dpr, 0, 0, dpr, 0, 0); rctx.fillStyle = '#0d1012'; rctx.fillRect(0, 0, W, H);
   const me = fixes[fixes.length - 1];
   if (RM.follow && me) { RM.cx = rwx(me.lon); RM.cy = rwy(me.lat); }
+  if (RM.cx == null && L.files.length) fitLayers(true);
   if (RM.cx == null) { const t = D.track[D.track.length - 1] || D.wpts.find(w => w.lat != null); if (t) { RM.cx = rwx(t.lon); RM.cy = rwy(t.lat); } else { rctx.fillStyle = '#8b969e'; rctx.font = '13px system-ui'; rctx.textAlign = 'center'; rctx.fillText('Waiting for GPS…', W / 2, H / 2); return; } }
   const view = { cx: RM.cx, cy: RM.cy, z: RM.z }, k = 256 * 2 ** RM.z;
   const S2 = (lat, lon) => [(rwx(lon) - RM.cx) * k + W / 2, (rwy(lat) - RM.cy) * k + H / 2];
   TILES.draw(rctx, RM.base, view, W, H, rsched, .15);
   $('#rAttr').textContent = TILES.attr(RM.base);
   const line = (pts, col, w) => { if (pts.length < 2) return; rctx.strokeStyle = col; rctx.lineWidth = w; rctx.beginPath(); pts.forEach((q, i) => { const [x, y] = S2(q.lat, q.lon); i ? rctx.lineTo(x, y) : rctx.moveTo(x, y); }); rctx.stroke(); };
-  if (course) line(course.points, 'rgba(255,138,31,.85)', 3);
+  const onScreen = (lat, lon) => { const [x, y] = S2(lat, lon); return x > -20 && y > -20 && x < W + 20 && y < H + 20; };
+  L.files.forEach((f, i) => { if (!f.visible) return; const col = LAYER_COLORS[i % LAYER_COLORS.length]; f.lines.forEach(l => line(l.points, col, 2)); });
+  if (course) { line(course.points, '#0008', 6); line(course.points, 'rgba(255,138,31,.95)', 3.5); }
+  if (RM.z >= 11) { rctx.globalAlpha = .8; L.files.forEach(f => { if (!f.visible) return; for (const w of f.wpts) { if (!onScreen(w.lat, w.lon)) continue; const [x, y] = S2(w.lat, w.lon); const im = SYM.img(w.icon || 'dot', null, rsched); if (im) rctx.drawImage(im, x - 10, y - 10, 20, 20); } }); rctx.globalAlpha = 1; }
   line(D.track, '#4aa3ff', 2);
   rctx.textAlign = 'center'; rctx.textBaseline = 'middle';
-  for (const w of D.wpts) { if (w.deleted || w.lat == null) continue; const [x, y] = S2(w.lat, w.lon); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue; const im = SYM.img(w.icon || 'caution', null, rsched); if (im) rctx.drawImage(im, x - 14, y - 14, 28, 28); }
+  for (const w of D.wpts) { if (w.deleted || w.lat == null) continue; const [x, y] = S2(w.lat, w.lon); if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue; const im = SYM.img(w.icon || 'caution', null, rsched); if (im) rctx.drawImage(im, x - 14, y - 14, 28, 28); if (w.plotted) { rctx.strokeStyle = '#fff'; rctx.lineWidth = 2; rctx.beginPath(); rctx.arc(x, y, 17, 0, 7); rctx.stroke(); rctx.lineWidth = 1; } }
   if (me) {
     const [x, y] = S2(me.lat, me.lon), mpp = 156543.034 * Math.cos(me.lat * Math.PI / 180) / 2 ** RM.z;
     rctx.fillStyle = 'rgba(74,163,255,.18)'; rctx.beginPath(); rctx.arc(x, y, Math.max(8, me.acc / mpp), 0, 7); rctx.fill();
     if (me.hdg != null && !isNaN(me.hdg)) { const h = (me.hdg - 90) * Math.PI / 180; rctx.fillStyle = '#fff'; rctx.beginPath(); rctx.moveTo(x + Math.cos(h) * 20, y + Math.sin(h) * 20); rctx.lineTo(x + Math.cos(h + 2.5) * 10, y + Math.sin(h + 2.5) * 10); rctx.lineTo(x + Math.cos(h - 2.5) * 10, y + Math.sin(h - 2.5) * 10); rctx.fill(); }
     rctx.fillStyle = '#4aa3ff'; rctx.strokeStyle = '#fff'; rctx.lineWidth = 3; rctx.beginPath(); rctx.arc(x, y, 8, 0, 7); rctx.fill(); rctx.stroke(); rctx.lineWidth = 1;
   }
-  if (RM.base !== 'none' && TILES.blocked()) { rctx.fillStyle = '#ff8a1f'; rctx.font = '11px system-ui'; rctx.textAlign = 'left'; rctx.fillText('No map background (offline or blocked)', 8, H - 22); }
+  if (RM.plot) { rctx.fillStyle = '#0b0d0fd9'; rctx.fillRect(W / 2 - 100, H - 84, 200, 26); rctx.fillStyle = '#fff'; rctx.font = '600 12px system-ui'; rctx.textAlign = 'center'; rctx.fillText('Tap the map to plot a waypoint', W / 2, H - 71); }
+  if (RM.base !== 'none' && TILES.blocked()) { rctx.fillStyle = '#ff8a1f'; rctx.font = '11px system-ui'; rctx.textAlign = 'left'; rctx.fillText('No map background (offline or blocked)', 10, H - 64); }
 }
 let rdrag = null;
 rcv.addEventListener('pointerdown', e => { rcv.setPointerCapture(e.pointerId); rdrag = { x: e.offsetX, y: e.offsetY, cx: RM.cx, cy: RM.cy }; });
 rcv.addEventListener('pointermove', e => { if (!rdrag || RM.cx == null) return; const k = 256 * 2 ** RM.z; RM.cx = rdrag.cx - (e.offsetX - rdrag.x) / k; RM.cy = rdrag.cy - (e.offsetY - rdrag.y) / k; if (Math.abs(e.offsetX - rdrag.x) + Math.abs(e.offsetY - rdrag.y) > 4) RM.follow = false; rsched(); });
-rcv.addEventListener('pointerup', () => { rdrag = null; });
+rcv.addEventListener('pointerup', e => {
+  const d = rdrag; rdrag = null; if (!d || RM.cx == null) return;
+  if (Math.abs(e.offsetX - d.x) + Math.abs(e.offsetY - d.y) > 6) return; // that was a drag
+  const hit = hitWaypoint(e.offsetX, e.offsetY);
+  if (hit) { plotDialog(hit); return; }
+  if (RM.plot) { const ll = screenToLL(e.offsetX, e.offsetY); plotDialog(null, ll); }
+});
 $('#rIn').onclick = () => { RM.z = Math.min(19, RM.z + 1); rsched(); };
 $('#rOut').onclick = () => { RM.z = Math.max(3, RM.z - 1); rsched(); };
 $('#rMe').onclick = () => { RM.follow = true; rsched(); };
-const bases = Object.keys(TILES.P);
-$('#rBase').onclick = () => { RM.base = bases[(bases.indexOf(RM.base) + 1) % bases.length]; try { localStorage.setItem('ck.basemap', RM.base); } catch (_) {} $('#rBase').textContent = RM.base === 'none' ? 'Grid' : RM.base === 'sat' ? 'Sat' : RM.base === 'topo' ? 'Topo' : 'St'; rsched(); };
+function setBase(b) {
+  if (!(b in TILES.P)) b = 'sat'; RM.base = b; try { localStorage.setItem('ck.basemap', b); } catch (_) {}
+  document.querySelectorAll('#rBases button').forEach(x => x.classList.toggle('on', x.dataset.b === b)); rsched();
+}
+$('#rBases').onclick = e => { const b = e.target.closest('button'); if (b) setBase(b.dataset.b); };
+$('#rBig').onclick = () => { const on = $('#rmapWrap').classList.toggle('tall'); $('#rBig').textContent = on ? '⤡' : '⤢'; setTimeout(rsched, 50); };
 new ResizeObserver(rsched).observe(rcv);
-$('#rBase').textContent = RM.base === 'none' ? 'Grid' : RM.base === 'sat' ? 'Sat' : RM.base === 'topo' ? 'Topo' : 'St';
+setBase(RM.base);
 setInterval(() => { if (document.visibilityState === 'visible' && rcv.clientWidth) rsched(); }, 1000);
+
+// ---------- imported trails and notes (any .usr / .gpx / .kml / .kmz) ----------
+const LAYER_COLORS = ['#ffd23f', '#c86bff', '#3ee08f', '#ff5d8f', '#5ce1ff', '#f2f2f2'];
+const USR_ICON = { 1: 'other', 12: 'rock', 14: 'house', 17: 'gas', 22: 'check', 23: 'caution', 32: 'deer', 33: 'hooves', 37: 'skull', 61: 'star' };
+const L = { files: [], course: 'auto' }; // persisted separately from the day
+let rmCal = null;
+const slim = pts => pts.filter(q => q && isFinite(q.lat) && isFinite(q.lon)).map(q => ({ lat: +q.lat.toFixed(6), lon: +q.lon.toFixed(6) }));
+async function readTrailFile(f) {
+  const buf = new Uint8Array(await f.arrayBuffer()), ext = f.name.toLowerCase().split('.').pop();
+  const fromXml = d => ({ lines: d.lines.map(l => ({ name: l.name || 'Track', points: slim(l.points) })), wpts: d.wpts.map(w => ({ lat: w.lat, lon: w.lon, name: w.name || '', note: w.note || '', icon: SYM.has((w.sym || '').toLowerCase()) ? w.sym.toLowerCase() : '' })) });
+  let r;
+  if (ext === 'usr') {
+    const p = CK.parseUSR(buf);
+    r = { lines: (p.trails || []).map(t => ({ name: t.name || 'Trail', points: slim(t.points) })), wpts: p.wpts.map(w => ({ lat: w.lat, lon: w.lon, name: w.name || '', note: w.desc || '', icon: USR_ICON[w.icon] || '' })) };
+    (p.routes || []).forEach(rt => { const pts = rt.legs.map(u => p.wpts.find(w => w.uuid && w.uuid.length === u.length && w.uuid.every((b, i) => b === u[i]))).filter(Boolean); if (pts.length > 1) r.lines.push({ name: rt.name || 'Route', points: slim(pts) }); });
+  } else if (ext === 'gpx') r = fromXml(CK.parseGPX(new TextDecoder().decode(buf), DOMParser));
+  else if (ext === 'kml') r = fromXml(CK.parseKML(new TextDecoder().decode(buf), DOMParser));
+  else if (ext === 'kmz') { const k = (await CK.unzip(buf)).find(e => e.name.toLowerCase().endsWith('.kml')); if (!k) throw new Error('no .kml inside'); r = fromXml(CK.parseKML(new TextDecoder().decode(k.data), DOMParser)); }
+  else throw new Error('use .usr, .gpx, .kml or .kmz');
+  r.lines = r.lines.filter(l => l.points.length > 1); r.name = f.name; r.visible = true;
+  return r;
+}
+// Trails named like "Course S01, S02, …" are one course in pieces: offer them joined.
+function seriesOf(fi) {
+  const g = {};
+  L.files[fi].lines.forEach((l, i) => { const m = /^(.*?)(\d+)\s*$/.exec(l.name || ''); if (m) (g[m[1]] = g[m[1]] || []).push({ i, n: +m[2] }); });
+  return Object.entries(g).filter(([, v]) => v.length > 1).map(([prefix, v]) => ({ key: `s:${fi}:${prefix}`, label: `${prefix.trim() || 'Trail'} ${v.length} parts joined`, parts: v.sort((a, b) => a.n - b.n).map(x => x.i), len: v.reduce((a, x) => a + L.files[fi].lines[x.i].points.length, 0) }));
+}
+function courseChoices() {
+  const out = [];
+  L.files.forEach((f, fi) => { seriesOf(fi).forEach(s => out.push({ key: s.key, label: `${f.name}: ${s.label}`, len: s.len * 2 })); f.lines.forEach((l, li) => out.push({ key: `l:${fi}:${li}`, label: `${f.name}: ${l.name}`, len: l.points.length })); });
+  return out;
+}
+function buildCourseFromLayers() {
+  course = null; rmCal = null;
+  let key = L.course;
+  const ch = courseChoices();
+  if (key === 'auto') key = ch.length ? ch.sort((a, b) => b.len - a.len)[0].key : 'none';
+  let pts = null;
+  if (key.startsWith('s:')) { const [, fi, ...pre] = key.split(':'); const s = L.files[+fi] && seriesOf(+fi).find(x => x.key === key); if (s) pts = CK.joinSeries(s.parts.map(i => L.files[+fi].lines[i])).points; }
+  else if (key.startsWith('l:')) { const [, fi, li] = key.split(':').map(Number); const l = L.files[fi] && L.files[fi].lines[li]; if (l) pts = l.points; }
+  if (pts && pts.length > 1) {
+    course = CK.buildCourse(pts, 0);
+    // Line race miles up with any "RM 123" notes in the imported files (SCORE course files have them).
+    const marks = [];
+    L.files.forEach(f => f.wpts.forEach(w => { const m = /\bRM\s*([0-9]+(?:\.[0-9]+)?)/i.exec(`${w.name} ${w.note}`); if (!m) return; const r = CK.project(course, w); if (r.offM < 300) marks.push([r.mile, +m[1]]); }));
+    marks.sort((a, b) => a[0] - b[0]);
+    const mono = []; for (const m of marks) if (!mono.length || (m[0] > mono[mono.length - 1][0] + .05 && m[1] > mono[mono.length - 1][1])) mono.push(m);
+    rmCal = mono.length >= 2 ? mono : null;
+    L.info = `Course ${course.lengthMi.toFixed(0)} mi${rmCal ? `, lined up with ${rmCal.length} RM marks` : ''}.`;
+  } else L.info = '';
+  if (!fixes.length) set('#sRm', '–', '');
+  renderLayers();
+}
+function raceMile(p) {
+  const r = CK.project(course, p), m = r.mile, c = rmCal;
+  if (!c) return { mile: m + (parseFloat($('#startMile').value) || 0), offM: r.offM };
+  let v;
+  if (m <= c[0][0]) v = c[0][1] + (m - c[0][0]);
+  else if (m >= c[c.length - 1][0]) v = c[c.length - 1][1] + (m - c[c.length - 1][0]);
+  else { let lo = 0, hi = c.length - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (c[mid][0] <= m) lo = mid; else hi = mid; } v = c[lo][1] + (m - c[lo][0]) * (c[hi][1] - c[lo][1]) / (c[hi][0] - c[lo][0]); }
+  return { mile: v, offM: r.offM };
+}
+function saveLayers() { db && tx('kv', 'readwrite', s => s.put(JSON.stringify(L), 'layers')).catch(e => log('could not keep trails: ' + e.message)); }
+function renderLayers() {
+  const el = $('#layers');
+  if (!L.files.length) { el.innerHTML = '<p class="mute small">No trails yet. Import a course or old pre-run (.usr, .gpx, .kml or .kmz) to see it on the map and get race miles.</p>'; return; }
+  const ch = courseChoices();
+  el.innerHTML = L.files.map((f, i) => `<div class="layer"><span class="sw" style="background:${LAYER_COLORS[i % LAYER_COLORS.length]}"></span>
+    <label><input type="checkbox" data-vis="${i}" ${f.visible ? 'checked' : ''}><span><b>${f.name.replace(/</g, '&lt;')}</b><small>${f.lines.length} trail${f.lines.length === 1 ? '' : 's'} · ${f.wpts.length} waypoint${f.wpts.length === 1 ? '' : 's'}</small></span></label>
+    <button class="quiet" data-rm="${i}" aria-label="Remove ${f.name.replace(/"/g, '')}">✕</button></div>`).join('') +
+    `<div class="row"><label for="courseSel">Race miles from</label><select id="courseSel"><option value="auto">Longest trail (automatic)</option><option value="none">No course</option>${ch.map(c => `<option value="${c.key}">${c.label.replace(/</g, '&lt;')}</option>`).join('')}</select></div>${L.info ? `<p class="mute small">${L.info}</p>` : ''}`;
+  $('#courseSel').value = ch.some(c => c.key === L.course) || L.course === 'none' ? L.course : 'auto';
+}
+$('#layers').onchange = e => {
+  if (e.target.dataset.vis != null) { L.files[+e.target.dataset.vis].visible = e.target.checked; saveLayers(); rsched(); }
+  if (e.target.id === 'courseSel') { L.course = e.target.value; saveLayers(); buildCourseFromLayers(); rsched(); }
+};
+$('#layers').onclick = e => {
+  const i = e.target.closest('[data-rm]') && +e.target.closest('[data-rm]').dataset.rm; if (i == null || isNaN(i)) return;
+  if (!confirm(`Remove ${L.files[i].name} from the map?`)) return;
+  L.files.splice(i, 1); L.course = 'auto'; saveLayers(); buildCourseFromLayers(); rsched();
+};
+if (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) $('#trailIn').removeAttribute('accept');
+$('#trailBtn').onclick = () => $('#trailIn').click();
+$('#trailIn').onchange = async e => {
+  const added = [];
+  for (const f of e.target.files) { try { const r = await readTrailFile(f); L.files.push(r); added.push(`${f.name}: ${r.lines.length} trails, ${r.wpts.length} waypoints`); } catch (er) { alert(`${f.name}: ${er.message}`); } }
+  e.target.value = '';
+  if (!added.length) return;
+  log('imported ' + added.join('; '));
+  saveLayers(); buildCourseFromLayers(); fitLayers(); rsched();
+};
+function fitLayers(quiet) {
+  let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+  if (course) course.points.forEach(q => { const x = rwx(q.lon), y = rwy(q.lat); if (x < a) a = x; if (x > b) b = x; if (y < c) c = y; if (y > d) d = y; });
+  else L.files.forEach(f => { if (!f.visible) return; f.lines.forEach(l => l.points.forEach(q => { const x = rwx(q.lon), y = rwy(q.lat); if (x < a) a = x; if (x > b) b = x; if (y < c) c = y; if (y > d) d = y; })); f.wpts.forEach(q => { const x = rwx(q.lon), y = rwy(q.lat); if (x < a) a = x; if (x > b) b = x; if (y < c) c = y; if (y > d) d = y; }); });
+  if (a > b) return;
+  const W = rcv.clientWidth || 360, H = rcv.clientHeight || 300;
+  RM.cx = (a + b) / 2; RM.cy = (c + d) / 2; RM.follow = false;
+  RM.z = Math.max(3, Math.min(17, Math.log2(Math.min(W / Math.max(b - a, 1e-9), H / Math.max(d - c, 1e-9)) * .85 / 256)));
+  if (!quiet) rsched();
+}
+$('#rFit').onclick = () => fitLayers();
+
+// ---------- plotting: tap the map to place a waypoint, or tap one to change it ----------
+function screenToLL(x, y) {
+  const k = 256 * 2 ** RM.z, wx = RM.cx + (x - rcv.clientWidth / 2) / k, wy = RM.cy + (y - rcv.clientHeight / 2) / k;
+  return { lat: Math.atan(Math.sinh(Math.PI * (1 - 2 * wy))) * 180 / Math.PI, lon: wx * 360 - 180 };
+}
+function hitWaypoint(x, y) {
+  const k = 256 * 2 ** RM.z; let best = null, bd = 22;
+  for (const w of D.wpts) { if (w.deleted || w.lat == null) continue; const sx = (rwx(w.lon) - RM.cx) * k + rcv.clientWidth / 2, sy = (rwy(w.lat) - RM.cy) * k + rcv.clientHeight / 2, dd = Math.hypot(sx - x, sy - y); if (dd < bd) { bd = dd; best = w; } }
+  return best;
+}
+$('#rPlot').onclick = () => { RM.plot = !RM.plot; $('#rPlot').classList.toggle('on', RM.plot); $('#rPlot').setAttribute('aria-pressed', RM.plot); rsched(); };
+const PLOT_ICONS = ['caution', 'skull', 'rock', 'hooves', 'deer', 'check', 'house', 'gas', 'star', 'other', 'dot'].filter(k => SYM.has(k));
+let plotting = null;
+function plotDialog(w, ll) {
+  plotting = { w, ll, icon: w ? w.icon || 'caution' : 'caution' };
+  $('#plotT').textContent = w ? `${w.name}${w.rm != null ? ` · RM ${w.rm.toFixed(1)}` : ''}` : 'Plot a waypoint';
+  $('#plotIcons').innerHTML = PLOT_ICONS.map(k => `<button type="button" data-i="${k}" class="${k === plotting.icon ? 'on' : ''}" aria-label="${k}">${SYM.html(k, 30)}</button>`).join('');
+  $('#plotNote').value = w ? w.note || '' : '';
+  $('#plotCall').value = w ? w.callout ?? '' : ($('#defCallout').value || '500');
+  const p = w || ll;
+  $('#plotWhere').textContent = `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}${course ? (() => { const r = raceMile(p); return r.offM > 800 ? ` · ${(r.offM / 1609.34).toFixed(1)} mi off the course` : ` · RM ${r.mile.toFixed(1)}${r.offM > 150 ? ` · ${Math.round(r.offM / FT)} ft off` : ''}`; })() : ''}`;
+  $('#plotDel').style.display = w ? '' : 'none';
+  $('#plotHere').style.display = w ? 'none' : '';
+  $('#plotDlg').showModal();
+  if (!w) setTimeout(() => $('#plotNote').focus(), 50);
+}
+$('#plotIcons').onclick = e => { const b = e.target.closest('button'); if (!b) return; plotting.icon = b.dataset.i; document.querySelectorAll('#plotIcons button').forEach(x => x.classList.toggle('on', x === b)); };
+$('#plotX').onclick = () => $('#plotDlg').close();
+$('#plotHere').onclick = () => {
+  const me = fixes[fixes.length - 1]; if (!me) { alert('No GPS position yet. Tap Start the day, or plot on the map instead.'); return; }
+  plotting.ll = { lat: me.lat, lon: me.lon, acc: me.acc };
+  $('#plotWhere').textContent = `${me.lat.toFixed(5)}, ${me.lon.toFixed(5)} (my position)`;
+};
+$('#plotDel').onclick = () => { const w = plotting.w; w.deleted = true; save(); renderWps(); $('#plotDlg').close(); rsched(); };
+$('#plotSave').onclick = () => {
+  const note = $('#plotNote').value.trim(), callout = $('#plotCall').value.trim() || ($('#defCallout').value || '500');
+  if (plotting.w) { Object.assign(plotting.w, { note, icon: plotting.icon, callout }); save(); renderWps(); }
+  else { const q = plotting.ll; dropWaypoint({ t: Date.now(), plotted: true, fix: { lat: q.lat, lon: q.lon, acc: q.acc ?? 0, spd: null, stale: false }, note, icon: plotting.icon, callout, heard: '(plotted on the map)' }); }
+  $('#plotDlg').close(); rsched();
+};
 // ---------- boot ----------
 (async () => {
   try {
     db = await idb();
     const saved = await tx('kv', 'readonly', s => s.get('day'));
+    const ls = await tx('kv', 'readonly', s => s.get('layers')); if (ls) Object.assign(L, JSON.parse(ls));
     if (saved) { Object.assign(D, JSON.parse(saved)); log(`— restored day from ${new Date(D.started || Date.now()).toLocaleString()}`); D.transcript.slice(-50).forEach(x => log(`${hhmmss(x.t)}  ${x.text}`)); $('#go').textContent = D.started ? 'Resume the day' : 'Start the day'; }
   } catch (e) { log('storage unavailable: ' + e.message); }
-  renderWps(); audioInfo();
+  renderWps(); audioInfo(); buildCourseFromLayers(); rsched();
   if (!SR) set('#sSpeech', 'not supported here — use Safari', 'bad');
   if (!window.isSecureContext) log('⚠ Not on https: GPS and microphone will be blocked. Host this file on an https site.');
 })();
