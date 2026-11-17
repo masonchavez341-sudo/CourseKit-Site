@@ -1,5 +1,5 @@
 // CourseKit service worker: keeps the app working with no signal, and keeps map squares you've viewed.
-const VERSION = '985deb4967';
+const VERSION = 'a51886d62c';
 const APP = `coursekit-app-${VERSION}`;
 const TILES = 'coursekit-tiles';
 const MAX_TILES = 3000;

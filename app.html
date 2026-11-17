@@ -1856,6 +1856,9 @@ function inspector() {
 const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 async function saveFile(name, data, type) {
   const blob = data instanceof Blob ? data : new Blob([data], { type });
+  if (window.CKNative && window.CKNative.isNative) {
+    try { return await window.CKNative.shareFile(name, blob); } catch (e) { toast(`Could not save ${name}: ${e.message || e}`, 7000); return 'cancel'; }
+  }
   if (IS_IOS && navigator.canShare) {
     try { const file = new File([blob], name, { type }); if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return 'shared'; } }
     catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
@@ -1983,7 +1986,9 @@ function fixAt(t) {
 }
 
 // ---------- speech ----------
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const NATIVE = !!(window.CKNative && window.CKNative.isNative);
+// In the iOS app Apple's speech recognizer comes through the native bridge (the browser one doesn't run in apps).
+const SR = (NATIVE && window.CKNative.SR) || window.SpeechRecognition || window.webkitSpeechRecognition;
 const engine = () => PV.Engine({
   lock: now => fixAt(now - 300),
   drop: w => dropWaypoint(w),
@@ -2076,6 +2081,7 @@ function audioInfo() { const mb = D.segs.reduce((a, s) => a + s.size, 0) / 1e6; 
 
 // ---------- wake lock & beeps ----------
 async function keepAwake() {
+  if (NATIVE) { await window.CKNative.keepAwake(true); set('#sWake', 'on', 'ok'); return; }
   try { wakeLock = await navigator.wakeLock.request('screen'); set('#sWake', 'on', 'ok'); wakeLock.addEventListener('release', () => set('#sWake', 'released', 'warn')); }
   catch (e) { set('#sWake', 'no, set Auto-Lock to Never', 'warn'); }
 }
@@ -2102,6 +2108,7 @@ $('#go').onclick = async () => {
     clearTimeout(segTimer); recStream && recStream.getTracks().forEach(t => t.stop()); recStream = null;
     if (watchId != null) navigator.geolocation.clearWatch(watchId);
     try { wakeLock && wakeLock.release(); } catch (_) {}
+    if (NATIVE) window.CKNative.keepAwake(false);
     set('#sSpeech', 'off', 'mute'); set('#sRec', 'stopped', 'mute'); set('#sGps', 'off', 'mute');
     log(`— stopped ${new Date().toLocaleString()}`);
   }
